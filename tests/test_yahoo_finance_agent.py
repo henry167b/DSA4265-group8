@@ -1,3 +1,6 @@
+from backend.agents.yahoo_finance_agent import YahooFinanceAgent
+
+
 # Example usage and test function
 def test_agent():
     """Test the Yahoo Finance Agent with Nvidia."""
