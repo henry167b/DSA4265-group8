@@ -1,0 +1,67 @@
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              USER INTERFACE                                 │
+│                       (CLI, Web, or API endpoint)                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                       │
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       PROMPT ROUTER / ORCHESTRATOR                          │
+│  Example input: "Should I buy NVIDIA?"                                     │
+│  - Identifies intent: equity recommendation request                        │
+│  - Extracts ticker/company metadata                                         │
+│  - Triggers downstream multi-agent workflow                                 │
+│  - Validates outputs and manages retries/errors                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                       │
+             ┌─────────────────────────┼─────────────────────────┐
+             │                         │                         │
+             ▼                         ▼                         ▼
+┌─────────────────────┐   ┌──────────────────────────┐   ┌──────────────────────┐
+│ AGENT 1: MAVIS      │   │ AGENT 2: HENRY + LERAN   │   │ SESSION CONTEXT       │
+│ Market Data Fetch   │   │ Filing Retrieval + Tone  │   │ HANDOFF               │
+│ - Queries yfinance  │   │ - Retrieves latest 4     │   │ - In-memory only      │
+│ - Pulls stock price │   │   quarterly 10-Q filings │   │ - No persistent store │
+│ - Can add price     │   │ - Performs sentiment /   │   │ - Passes outputs      │
+│   history / volume  │   │   tone analysis on text  │   │   across agents       │
+└─────────────────────┘   └──────────────────────────┘   └──────────────────────┘
+             │                         │
+             └──────────────┬──────────┘
+                            ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         AGENT 3: FINANCIAL CALCS                            │
+│  - Consumes market data + 10-Q data                                         │
+│  - Computes basic metrics such as P/E, EBITDA, and related ratios           │
+│  - Produces normalized calculation outputs for downstream use               │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                       │
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     AGENT 4: ZIPIN REPORT GENERATION                        │
+│  - Synthesizes outputs from Agents 1-3                                      │
+│  - Drafts the initial investment write-up                                   │
+│  - Produces charts / visualizations                                         │
+│  - Structures the output as a presentable report                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                       │
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                   AGENT 5: JASON SENIOR-ANALYST EDITOR                      │
+│  - Revises Agent 4 draft in a senior analyst voice                          │
+│  - Ensures the response satisfies explicit user requirements                │
+│  - Improves clarity, recommendation framing, and final polish              │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                       │
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                  OUTPUT                                     │
+│         Final recommendation memo with visuals (Markdown / PDF / UI)        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Pipeline summary
+1. User asks an investment question such as "Should I buy NVIDIA?"
+2. Orchestrator parses the prompt and extracts the target company/ticker.
+3. Mavis retrieves market data from yfinance.
+4. Henry + Leran retrieve the past four 10-Q filings and score filing tone.
+5. Financial-calculation agent computes valuation and operating metrics.
+6. Zipin writes the first complete report and attaches visualizations.
+7. Jason edits the report to match a senior analyst standard and user needs.
