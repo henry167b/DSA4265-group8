@@ -1,136 +1,161 @@
-def test_yahoo_finance_only():
-    """Test only Yahoo Finance functionality."""
-    agent = YahooFinanceAgent()
+import sys
+from types import SimpleNamespace
+from unittest.mock import patch
 
-    result = agent.get_stock_data("NVDA")
+sys.modules.setdefault("yfinance", SimpleNamespace())
+sys.modules.setdefault("pandas", SimpleNamespace(MultiIndex=type("MultiIndex", (), {})))
 
-    if result["success"]:
-        print("Yahoo Finance Agent executed successfully!")
-        print("\n" + "="*60)
-        print(agent.format_for_next_agent(result))
-        print("="*60)
-    else:
-        print(f"Error: {result['error']}")
+from backend.agents.yahoo_finance_agent import YahooFinanceAgent
 
 
-def test_sec_only():
-    """Test only SEC EDGAR functionality."""
-    agent = YahooFinanceAgent()
-    ticker = "NVDA"
+def _mock_response(payload=None, text="", status_code=200):
+    class MockResponse:
+        def __init__(self, payload, text, status_code):
+            self._payload = payload
+            self.text = text
+            self.status_code = status_code
 
-    print(f"Testing SEC EDGAR data for {ticker}...\n")
+        def json(self):
+            return self._payload
 
-    # Test CIK conversion
-    cik = agent.ticker_to_cik(ticker)
-    print(f"CIK: {cik}")
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise RuntimeError(f"HTTP {self.status_code}")
 
-    # Test 10-Q filings
-    print("\n" + "="*60)
-    filings = agent.get_recent_10q_filings(ticker)
-    if filings.get('success'):
-        print(agent.format_sec_data_for_next_agent(filings))
-    else:
-        print(f"Error: {filings.get('error')}")
-
-    # Test financial facts
-    print("\n" + "="*60)
-    facts = agent.get_financial_facts(ticker)
-    if facts.get('success'):
-        print(agent.format_financial_facts_for_next_agent(facts))
-    else:
-        print(f"Error: {facts.get('error')}")
+    return MockResponse(payload, text, status_code)
 
 
-def test_complete_agent():
-    """Test the complete agent with both Yahoo Finance and SEC data."""
-    agent = YahooFinanceAgent()
+@patch("backend.agents.yahoo_finance_agent.time.sleep", return_value=None)
+@patch("backend.agents.yahoo_finance_agent.requests.get")
+def test_get_recent_10q_filings_includes_document_html_when_requested(mock_get, _mock_sleep):
+    agent = YahooFinanceAgent(user_email="test@example.com")
 
-    ticker = "NVDA"
-    print(f"Testing complete Agent 1 with {ticker}...\n")
+    company_tickers_payload = {
+        "0": {"ticker": "NVDA", "cik_str": 1045810, "title": "NVIDIA CORP"}
+    }
+    submissions_payload = {
+        "name": "NVIDIA CORP",
+        "filings": {
+            "recent": {
+                "form": ["10-Q", "8-K", "10-Q"],
+                "accessionNumber": ["0001045810-24-000123", "0001045810-24-000124", "0001045810-24-000125"],
+                "filingDate": ["2024-08-28", "2024-08-20", "2024-05-29"],
+                "primaryDocument": ["nvda-20240728x10q.htm", "nvda-8k.htm", "nvda-20240428x10q.htm"],
+            }
+        },
+    }
 
-    # Get complete analysis data
-    complete_data = agent.get_complete_analysis_data(ticker)
+    mock_get.side_effect = [
+        _mock_response(payload=company_tickers_payload),
+        _mock_response(payload=submissions_payload),
+        _mock_response(text="<html><body><h1>Quarterly Report</h1><p>Revenue grew strongly.</p></body></html>"),
+        _mock_response(text="<html><body><p>Second filing body.</p></body></html>"),
+    ]
 
-    if complete_data.get("success"):
-        print("Agent 1 executed successfully!")
+    result = agent.get_recent_10q_filings("NVDA", num_quarters=2, include_document_html=True)
 
-        # Show Yahoo Finance data
-        print("\n" + "="*60)
-        print("YAHOO FINANCE DATA")
-        print("="*60)
-        print(agent.format_for_next_agent(complete_data))
-
-        # Show SEC Filings data
-        print("\n" + "="*60)
-        print("SEC EDGAR DATA")
-        print("="*60)
-        sec_filings = complete_data.get('sec_filings', {})
-        print(agent.format_sec_data_for_next_agent(sec_filings))
-
-        # Show Financial Facts
-        print("\n" + "="*60)
-        print("XBRL FINANCIAL FACTS")
-        print("="*60)
-        financial_facts = complete_data.get('financial_facts', {})
-        print(agent.format_financial_facts_for_next_agent(financial_facts))
-
-        # Show data summary
-        print("\n" + "="*60)
-        print("DATA SUMMARY")
-        print("="*60)
-        print(f"📄 10-Q Filings Retrieved: {len(sec_filings.get('filings', []))}")
-
-        metrics = financial_facts.get('financial_metrics', {})
-        print(f"Financial Metrics Retrieved: {len(metrics)}")
-        for metric in metrics.keys():
-            print(f"   - {metric}")
-
-    else:
-        print(f"Error: {complete_data.get('error')}")
+    assert result["success"] is True
+    assert len(result["filings"]) == 2
+    assert result["filings"][0]["document_fetch_success"] is True
+    assert "Quarterly Report" in result["filings"][0]["document_html"]
+    assert "Revenue grew strongly." in result["filings"][0]["document_html"]
+    assert result["filings"][0]["document_html_length"] == len(result["filings"][0]["document_html"])
+    assert result["filings"][1]["document_html"] == "<html><body><p>Second filing body.</p></body></html>"
 
 
-def test_multiple_tickers():
-    """Test the agent with multiple tickers."""
-    agent = YahooFinanceAgent()
-    tickers = ["NVDA", "AAPL", "MSFT", "GOOGL"]
+@patch("backend.agents.yahoo_finance_agent.time.sleep", return_value=None)
+@patch("backend.agents.yahoo_finance_agent.requests.get")
+def test_get_recent_10q_filings_skips_document_download_by_default(mock_get, _mock_sleep):
+    agent = YahooFinanceAgent(user_email="test@example.com")
 
-    print("Testing multiple tickers...\n")
+    company_tickers_payload = {
+        "0": {"ticker": "NVDA", "cik_str": 1045810, "title": "NVIDIA CORP"}
+    }
+    submissions_payload = {
+        "name": "NVIDIA CORP",
+        "filings": {
+            "recent": {
+                "form": ["10-Q"],
+                "accessionNumber": ["0001045810-24-000123"],
+                "filingDate": ["2024-08-28"],
+                "primaryDocument": ["nvda-20240728x10q.htm"],
+            }
+        },
+    }
 
-    for ticker in tickers:
-        print(f"\n{'='*50}")
-        print(f"Processing {ticker}...")
-        print('='*50)
+    mock_get.side_effect = [
+        _mock_response(payload=company_tickers_payload),
+        _mock_response(payload=submissions_payload),
+    ]
 
-        # Get Yahoo Finance data
-        stock_data = agent.get_stock_data(ticker)
-        if stock_data.get("success"):
-            price = stock_data['current_data'].get('current_price')
-            print(f"{ticker}: ${price:.2f}" if price else f"{ticker}: Data retrieved")
-        else:
-            print(f"{ticker}: {stock_data.get('error')}")
+    result = agent.get_recent_10q_filings("NVDA", num_quarters=1)
 
-        # Get SEC filings
-        sec_data = agent.get_recent_10q_filings(ticker, num_quarters=2)
-        if sec_data.get('success'):
-            print(f" Found {len(sec_data.get('filings', []))} recent 10-Q filings")
-        else:
-            print(f" SEC data: {sec_data.get('error', 'Unknown error')}")
+    assert result["success"] is True
+    assert len(result["filings"]) == 1
+    assert "document_html" not in result["filings"][0]
+    assert mock_get.call_count == 2
 
 
-if __name__ == "__main__":
-    print("="*60)
-    print("AGENT 1: YAHOO FINANCE + SEC EDGAR DATA FETCHER")
-    print("="*60)
+def test_prepare_recent_10q_filings_for_chunking_adds_prepared_chunk_data():
+    agent = YahooFinanceAgent(user_email="test@example.com")
 
-    # Choose which test to run
-    print("\n1. Testing Yahoo Finance only...\n")
-    test_yahoo_finance_only()
+    filings_payload = {
+        "ticker": "NVDA",
+        "cik": "0001045810",
+        "company_name": "NVIDIA CORP",
+        "filings": [
+            {
+                "filing_date": "2024-08-28",
+                "accession_number": "0001045810-24-000123",
+                "form_type": "10-Q",
+                "document_url": "https://www.sec.gov/example.htm",
+                "quarter": "2024 Q3",
+                "document_fetch_success": True,
+                "document_html": "<html><body><h1>ITEM 2</h1><p>Revenue expanded.</p></body></html>",
+                "document_html_length": 69,
+            }
+        ],
+        "success": True,
+    }
 
-    print("\n\n2. Testing SEC EDGAR only...\n")
-    test_sec_only()
+    with patch.object(agent, "get_recent_10q_filings", return_value=filings_payload):
+        prepared = agent.prepare_recent_10q_filings_for_chunking("NVDA", num_quarters=1)
 
-    print("\n\n3. Testing complete agent...\n")
-    test_complete_agent()
+    assert prepared["prepared_for_chunking"] is True
+    prepared_filing = prepared["filings"][0]
+    assert "prepared_chunk_data" in prepared_filing
+    assert prepared_filing["prepared_chunk_data"]["chunks"]
+    assert "Revenue expanded." in prepared_filing["prepared_chunk_data"]["prose_text"]
 
-    print("\n\n4. Testing multiple tickers...\n")
-    test_multiple_tickers()
+
+def test_build_recent_10q_retrieval_corpus_flattens_chunk_records():
+    agent = YahooFinanceAgent(user_email="test@example.com")
+
+    prepared_payload = {
+        "ticker": "NVDA",
+        "filings": [
+            {
+                "filing_date": "2024-08-28",
+                "accession_number": "0001045810-24-000123",
+                "quarter": "2024 Q3",
+                "form_type": "10-Q",
+                "prepared_chunk_data": {
+                    "prose_chunks": ["Revenue increased strongly this quarter."],
+                    "table_chunks": ["[Quarterly Revenue]\nData Center (2024): $47,500"],
+                    "chunks": [
+                        "Revenue increased strongly this quarter.",
+                        "[Quarterly Revenue]\nData Center (2024): $47,500",
+                    ],
+                },
+            }
+        ],
+        "success": True,
+    }
+
+    with patch.object(agent, "prepare_recent_10q_filings_for_chunking", return_value=prepared_payload):
+        corpus = agent.build_recent_10q_retrieval_corpus("NVDA", num_quarters=1)
+
+    assert corpus["success"] is True
+    assert corpus["chunk_count"] == 2
+    assert corpus["chunk_records"][0]["source_type"] == "prose"
+    assert corpus["chunk_records"][1]["source_type"] == "table"

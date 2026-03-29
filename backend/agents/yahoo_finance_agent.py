@@ -8,6 +8,13 @@ from typing import Dict, Optional, List, Any
 import logging
 import warnings
 
+from .filing_chunker import prepare_filing_html_for_chunking
+from .retrieval_pipeline import (
+    FilingRetrievalPipeline,
+    OpenAIEmbeddingProvider,
+    build_chunk_records_from_prepared_filings,
+)
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -336,16 +343,22 @@ class YahooFinanceAgent:
             logger.error(f"Unexpected error converting ticker to CIK: {e}")
             return None
 
-    def get_recent_10q_filings(self, ticker: str, num_quarters: int = 4) -> Dict:
+    def get_recent_10q_filings(
+        self,
+        ticker: str,
+        num_quarters: int = 4,
+        include_document_html: bool = False
+    ) -> Dict:
         """
         Fetch recent 10-Q filings for a company using SEC Submissions API.
 
         Args:
             ticker: Stock ticker symbol
             num_quarters: Number of quarters to retrieve (default 4)
+            include_document_html: Whether to download and attach the filing HTML
 
         Returns:
-            Dictionary with filing metadata and URLs for the 10-Q documents
+            Dictionary with filing metadata, URLs, and optionally filing HTML
         """
         cik = self.ticker_to_cik(ticker)
         if not cik:
@@ -384,13 +397,21 @@ class YahooFinanceAgent:
                     # Construct URL for the filing document
                     document_url = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession}/{primary_documents[i]}"
 
-                    ten_q_filings.append({
+                    filing_record = {
                         "filing_date": filing_dates[i],
                         "accession_number": accession_numbers[i],
                         "form_type": "10-Q",
                         "document_url": document_url,
                         "quarter": self._get_quarter_from_date(filing_dates[i])
-                    })
+                    }
+
+                    if include_document_html:
+                        document_html = self.get_full_10q_document(document_url)
+                        filing_record["document_fetch_success"] = document_html is not None
+                        filing_record["document_html"] = document_html
+                        filing_record["document_html_length"] = len(document_html) if document_html else 0
+
+                    ten_q_filings.append(filing_record)
 
             result = {
                 "ticker": ticker,
@@ -511,6 +532,129 @@ class YahooFinanceAgent:
             logger.error(f"Error fetching 10-Q document: {e}")
             return None
 
+    def prepare_10q_html_for_chunking(
+        self,
+        html_content: str,
+        prose_chunk_size: int = 600,
+        prose_chunk_overlap: int = 100,
+        table_window: int = 10,
+        table_overlap: int = 2,
+    ) -> Dict:
+        """Prepare 10-Q HTML for retrieval-friendly chunking."""
+        return prepare_filing_html_for_chunking(
+            html_content,
+            prose_chunk_size=prose_chunk_size,
+            prose_chunk_overlap=prose_chunk_overlap,
+            table_window=table_window,
+            table_overlap=table_overlap,
+        )
+
+    def prepare_recent_10q_filings_for_chunking(
+        self,
+        ticker: str,
+        num_quarters: int = 4,
+        prose_chunk_size: int = 600,
+        prose_chunk_overlap: int = 100,
+        table_window: int = 10,
+        table_overlap: int = 2,
+    ) -> Dict:
+        """Fetch recent 10-Q HTML and attach chunk-ready preprocessing outputs."""
+        filings_data = self.get_recent_10q_filings(
+            ticker,
+            num_quarters=num_quarters,
+            include_document_html=True,
+        )
+        if not filings_data.get("success"):
+            return filings_data
+
+        prepared_filings = []
+        for filing in filings_data.get("filings", []):
+            prepared_filing = dict(filing)
+            prepared_filing["prepared_chunk_data"] = self.prepare_10q_html_for_chunking(
+                filing.get("document_html") or "",
+                prose_chunk_size=prose_chunk_size,
+                prose_chunk_overlap=prose_chunk_overlap,
+                table_window=table_window,
+                table_overlap=table_overlap,
+            )
+            prepared_filings.append(prepared_filing)
+
+        return {
+            **filings_data,
+            "filings": prepared_filings,
+            "prepared_for_chunking": True,
+        }
+
+    def build_recent_10q_retrieval_corpus(
+        self,
+        ticker: str,
+        num_quarters: int = 4,
+        prose_chunk_size: int = 600,
+        prose_chunk_overlap: int = 100,
+        table_window: int = 10,
+        table_overlap: int = 2,
+    ) -> Dict:
+        """Fetch and flatten recent 10-Q chunk outputs into retrievable chunk records."""
+        prepared_filings = self.prepare_recent_10q_filings_for_chunking(
+            ticker,
+            num_quarters=num_quarters,
+            prose_chunk_size=prose_chunk_size,
+            prose_chunk_overlap=prose_chunk_overlap,
+            table_window=table_window,
+            table_overlap=table_overlap,
+        )
+        if not prepared_filings.get("success"):
+            return prepared_filings
+
+        chunk_records = build_chunk_records_from_prepared_filings(prepared_filings)
+        return {
+            "ticker": ticker,
+            "filings": prepared_filings.get("filings", []),
+            "chunk_records": [record.to_dict() for record in chunk_records],
+            "chunk_count": len(chunk_records),
+            "success": True,
+        }
+
+    def create_recent_10q_retrieval_pipeline(
+        self,
+        ticker: str,
+        openai_api_key: str,
+        num_quarters: int = 4,
+        prose_chunk_size: int = 600,
+        prose_chunk_overlap: int = 100,
+        table_window: int = 10,
+        table_overlap: int = 2,
+        embedding_model: str = "text-embedding-3-small",
+    ) -> Dict:
+        """Build an in-memory retrieval pipeline over recent 10-Q chunks."""
+        prepared_filings = self.prepare_recent_10q_filings_for_chunking(
+            ticker,
+            num_quarters=num_quarters,
+            prose_chunk_size=prose_chunk_size,
+            prose_chunk_overlap=prose_chunk_overlap,
+            table_window=table_window,
+            table_overlap=table_overlap,
+        )
+        if not prepared_filings.get("success"):
+            return prepared_filings
+
+        chunk_records = build_chunk_records_from_prepared_filings(prepared_filings)
+        embedding_provider = OpenAIEmbeddingProvider(
+            api_key=openai_api_key,
+            model=embedding_model,
+        )
+        pipeline = FilingRetrievalPipeline(embedding_provider)
+        index_result = pipeline.index_chunks(chunk_records)
+
+        return {
+            "ticker": ticker,
+            "pipeline": pipeline,
+            "filings": prepared_filings.get("filings", []),
+            "chunk_count": len(chunk_records),
+            "index_result": index_result,
+            "success": True,
+        }
+
     def _get_quarter_from_date(self, date_str: str) -> str:
         """Convert a date string to quarter format (e.g., '2024 Q1')."""
         try:
@@ -538,7 +682,11 @@ class YahooFinanceAgent:
             return stock_data
 
         # Get SEC 10-Q filings
-        sec_filings = self.get_recent_10q_filings(ticker, num_quarters=4)
+        sec_filings = self.get_recent_10q_filings(
+            ticker,
+            num_quarters=4,
+            include_document_html=True
+        )
 
         # Get financial facts from XBRL
         financial_facts = self.get_financial_facts(ticker)
@@ -644,9 +792,12 @@ CIK: {sec_data.get('cik', 'N/A')}
 RECENT 10-Q FILINGS:
 """
         for filing in sec_data.get('filings', []):
+            html_length = filing.get('document_html_length')
+            html_length_line = f"  HTML Length: {html_length:,} characters\n" if html_length is not None else ""
             formatted += f"""
 - {filing.get('quarter', 'N/A')} (Filed: {filing.get('filing_date', 'N/A')})
   Document URL: {filing.get('document_url', 'N/A')}
+{html_length_line}  Document Fetched: {filing.get('document_fetch_success', False)}
 """
 
         return formatted.strip()
@@ -692,36 +843,3 @@ KEY METRICS (Last 4 Quarters):
             formatted += f"{i}. {title} - {publisher}\n"
 
         return formatted.strip()
-
-    def get_complete_analysis_data(self, ticker: str) -> Dict:
-        """
-        Convenience method that combines Yahoo Finance data AND SEC filing data.
-        This is the main method to call for full analysis.
-
-        Args:
-            ticker: Stock ticker symbol
-
-        Returns:
-            Complete dictionary with market data and SEC filing data
-        """
-        # Get Yahoo Finance data
-        stock_data = self.get_stock_data(ticker)
-
-        if not stock_data.get('success'):
-            return stock_data
-
-        # Get SEC 10-Q filings
-        sec_filings = self.get_recent_10q_filings(ticker, num_quarters=4)
-
-        # Get financial facts from XBRL
-        financial_facts = self.get_financial_facts(ticker)
-
-        # Combine all data
-        complete_data = {
-            **stock_data,
-            "sec_filings": sec_filings,
-            "financial_facts": financial_facts,
-            "full_analysis": True
-        }
-
-        return complete_data
