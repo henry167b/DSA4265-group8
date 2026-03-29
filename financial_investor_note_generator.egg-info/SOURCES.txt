@@ -1,0 +1,15 @@
+README.md
+pyproject.toml
+backend/agents/__init__.py
+backend/agents/filing_chunker.py
+backend/agents/retrieval_pipeline.py
+backend/agents/yahoo_finance_agent.py
+financial_investor_note_generator.egg-info/PKG-INFO
+financial_investor_note_generator.egg-info/SOURCES.txt
+financial_investor_note_generator.egg-info/dependency_links.txt
+financial_investor_note_generator.egg-info/requires.txt
+financial_investor_note_generator.egg-info/top_level.txt
+tests/test_10q_rag.py
+tests/test_filing_chunker.py
+tests/test_retrieval_pipeline.py
+tests/test_yahoo_finance_agent.py
