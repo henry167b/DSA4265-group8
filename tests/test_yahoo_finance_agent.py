@@ -159,3 +159,34 @@ def test_build_recent_10q_retrieval_corpus_flattens_chunk_records():
     assert corpus["chunk_count"] == 2
     assert corpus["chunk_records"][0]["source_type"] == "prose"
     assert corpus["chunk_records"][1]["source_type"] == "table"
+
+
+def test_answer_10q_question_uses_retrieval_pipeline_and_generation():
+    agent = YahooFinanceAgent(user_email="test@example.com")
+
+    fake_pipeline = SimpleNamespace(
+        answer_question=lambda question, generation_provider, k: {
+            "question": question,
+            "answer": "Generated answer",
+            "sources": [{"chunk_id": "chunk-1", "text": "Revenue increased strongly."}],
+            "success": True,
+        }
+    )
+
+    with patch.object(
+        agent,
+        "create_recent_10q_retrieval_pipeline",
+        return_value={
+            "pipeline": fake_pipeline,
+            "filings": [{"filing_date": "2024-08-28"}],
+            "success": True,
+        },
+    ), patch("backend.agents.yahoo_finance_agent.OpenAIChatGenerationProvider"):
+        result = agent.answer_10q_question(
+            ticker="NVDA",
+            question="What changed in revenue?",
+        )
+
+    assert result["success"] is True
+    assert result["answer"] == "Generated answer"
+    assert result["sources"][0]["chunk_id"] == "chunk-1"

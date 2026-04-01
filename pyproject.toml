@@ -5,7 +5,11 @@ description = "Multi-agent workflow for generating investor notes from market da
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+  "beautifulsoup4",
+  "lxml",
+  "openai",
   "pandas",
+  "python-dotenv",
   "yfinance",
 ]
 

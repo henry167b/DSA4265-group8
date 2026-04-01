@@ -1,0 +1,6 @@
+beautifulsoup4
+lxml
+openai
+pandas
+python-dotenv
+yfinance

@@ -1,3 +1,16 @@
+Metadata-Version: 2.4
+Name: financial-investor-note-generator
+Version: 0.1.0
+Summary: Multi-agent workflow for generating investor notes from market data and SEC filings.
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: beautifulsoup4
+Requires-Dist: lxml
+Requires-Dist: openai
+Requires-Dist: pandas
+Requires-Dist: python-dotenv
+Requires-Dist: yfinance
+
 # Financial Investor Note Generator
 
 An AI-powered multi-agent system that parses equity questions such as "Should I buy NVIDIA?", gathers market and filing data, computes core metrics, and produces a polished investor note.
@@ -53,11 +66,14 @@ DSA4265-group8/
 ├── .env
 ├── backend/
 ├── frontend/
-├── tests
 └── README.md
 ```
 
-3. Use the shared `.env` file provided by the team and place it directly in the project root.
+3. Add your OpenAI key to the `.env` file in this format:
+
+```env
+OPENAI_API_KEY=your_openai_api_key_here
+```
 
 4. Do not commit `.env`; it is already ignored by Git.
 

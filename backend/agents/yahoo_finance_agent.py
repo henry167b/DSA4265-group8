@@ -11,6 +11,7 @@ import warnings
 from .filing_chunker import prepare_filing_html_for_chunking
 from .retrieval_pipeline import (
     FilingRetrievalPipeline,
+    OpenAIChatGenerationProvider,
     OpenAIEmbeddingProvider,
     build_chunk_records_from_prepared_filings,
 )
@@ -618,7 +619,7 @@ class YahooFinanceAgent:
     def create_recent_10q_retrieval_pipeline(
         self,
         ticker: str,
-        openai_api_key: str,
+        openai_api_key: Optional[str] = None,
         num_quarters: int = 4,
         prose_chunk_size: int = 600,
         prose_chunk_overlap: int = 100,
@@ -653,6 +654,44 @@ class YahooFinanceAgent:
             "chunk_count": len(chunk_records),
             "index_result": index_result,
             "success": True,
+        }
+
+    def answer_10q_question(
+        self,
+        ticker: str,
+        question: str,
+        openai_api_key: Optional[str] = None,
+        num_quarters: int = 4,
+        k: int = 5,
+        embedding_model: str = "text-embedding-3-small",
+        generation_model: str = "gpt-4o-mini",
+    ) -> Dict:
+        """Run end-to-end RAG over recent 10-Q filings for a single question."""
+        pipeline_result = self.create_recent_10q_retrieval_pipeline(
+            ticker=ticker,
+            openai_api_key=openai_api_key,
+            num_quarters=num_quarters,
+            embedding_model=embedding_model,
+        )
+        if not pipeline_result.get("success"):
+            return pipeline_result
+
+        generation_provider = OpenAIChatGenerationProvider(
+            api_key=openai_api_key,
+            model=generation_model,
+        )
+        answer_result = pipeline_result["pipeline"].answer_question(
+            question=question,
+            generation_provider=generation_provider,
+            k=k,
+        )
+        return {
+            "ticker": ticker,
+            "question": question,
+            "answer": answer_result.get("answer"),
+            "sources": answer_result.get("sources", []),
+            "filings": pipeline_result.get("filings", []),
+            "success": answer_result.get("success", False),
         }
 
     def _get_quarter_from_date(self, date_str: str) -> str:
