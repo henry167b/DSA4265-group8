@@ -8,9 +8,10 @@ from .retrieval_pipeline import (
     resolve_openai_api_key,
 )
 from .yahoo_finance_agent import YahooFinanceAgent
+from .report_draft_agent import ReportDraftAgent
 
 __all__ = [
-    'YahooFinanceAgent',
+    'YahooFinanceAgent', 'ReportDraftAgent',
     'prepare_filing_html_for_chunking',
     'FilingRetrievalPipeline',
     'OpenAIChatGenerationProvider',
