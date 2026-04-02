@@ -5,10 +5,15 @@ from .retrieval_pipeline import (
     OpenAIEmbeddingProvider,
     build_chunk_records_from_prepared_filings,
     build_generation_context,
+    order_retrieved_chunks_for_generation,
     resolve_openai_api_key,
 )
 from .yahoo_finance_agent import YahooFinanceAgent
-from .report_draft_agent import ReportDraftAgent
+
+try:
+    from .report_draft_agent import ReportDraftAgent
+except ImportError:
+    ReportDraftAgent = None
 
 __all__ = [
     'YahooFinanceAgent',
@@ -18,6 +23,9 @@ __all__ = [
     'OpenAIEmbeddingProvider',
     'build_chunk_records_from_prepared_filings',
     'build_generation_context',
+    'order_retrieved_chunks_for_generation',
     'resolve_openai_api_key',
-    'ReportDraftAgent'
 ]
+
+if ReportDraftAgent is not None:
+    __all__.append('ReportDraftAgent')

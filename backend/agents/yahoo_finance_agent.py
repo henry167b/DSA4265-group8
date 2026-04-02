@@ -414,6 +414,8 @@ class YahooFinanceAgent:
 
                     ten_q_filings.append(filing_record)
 
+            ten_q_filings.sort(key=lambda filing: filing.get("filing_date", ""))
+
             result = {
                 "ticker": ticker,
                 "cik": cik,
