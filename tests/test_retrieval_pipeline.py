@@ -8,6 +8,7 @@ from backend.agents.retrieval_pipeline import (
     FilingRetrievalPipeline,
     build_chunk_records_from_prepared_filings,
     build_generation_context,
+    order_retrieved_chunks_for_generation,
     resolve_openai_api_key,
 )
 
@@ -118,6 +119,41 @@ def test_build_generation_context_includes_metadata():
     assert "Ticker: NVDA" in context
     assert "Quarter: 2024 Q3" in context
     assert "Data Center (2024): $47,500" in context
+    assert "intentionally ordered chronologically" in context
+
+
+def test_order_retrieved_chunks_for_generation_sorts_oldest_to_newest():
+    ordered = order_retrieved_chunks_for_generation(
+        [
+            {
+                "chunk_id": "latest-table",
+                "filing_date": "2024-08-28",
+                "accession_number": "b",
+                "source_type": "table",
+                "text": "Latest table",
+            },
+            {
+                "chunk_id": "oldest-prose",
+                "filing_date": "2024-02-28",
+                "accession_number": "a",
+                "source_type": "prose",
+                "text": "Oldest prose",
+            },
+            {
+                "chunk_id": "latest-prose",
+                "filing_date": "2024-08-28",
+                "accession_number": "b",
+                "source_type": "prose",
+                "text": "Latest prose",
+            },
+        ]
+    )
+
+    assert [chunk["chunk_id"] for chunk in ordered] == [
+        "oldest-prose",
+        "latest-prose",
+        "latest-table",
+    ]
 
 
 def test_filing_retrieval_pipeline_can_generate_answer_from_search_results():
@@ -150,3 +186,55 @@ def test_filing_retrieval_pipeline_can_generate_answer_from_search_results():
     assert result["success"] is True
     assert "Answer to 'What was revenue?'" in result["answer"]
     assert len(result["sources"]) == 2
+
+
+def test_answer_question_reorders_selected_chunks_for_generation():
+    prepared = {
+        "ticker": "NVDA",
+        "filings": [
+            {
+                "filing_date": "2024-08-28",
+                "accession_number": "0001045810-24-000123",
+                "quarter": "2024 Q3",
+                "form_type": "10-Q",
+                "prepared_chunk_data": {
+                    "prose_chunks": ["Revenue increased strongly this quarter."],
+                    "table_chunks": [],
+                },
+            },
+            {
+                "filing_date": "2024-05-29",
+                "accession_number": "0001045810-24-000122",
+                "quarter": "2024 Q2",
+                "form_type": "10-Q",
+                "prepared_chunk_data": {
+                    "prose_chunks": ["Revenue was lower in the prior quarter."],
+                    "table_chunks": [],
+                },
+            },
+        ],
+    }
+
+    captured = {}
+
+    class CapturingGenerationProvider:
+        def generate_answer(self, question, retrieved_chunks):
+            captured["retrieved_chunks"] = retrieved_chunks
+            return "Chronological answer"
+
+    chunk_records = build_chunk_records_from_prepared_filings(prepared)
+    pipeline = FilingRetrievalPipeline(FakeEmbeddingProvider())
+    pipeline.index_chunks(chunk_records)
+
+    result = pipeline.answer_question(
+        question="What was revenue?",
+        generation_provider=CapturingGenerationProvider(),
+        k=2,
+    )
+
+    assert result["success"] is True
+    assert result["answer"] == "Chronological answer"
+    assert [chunk["filing_date"] for chunk in captured["retrieved_chunks"]] == [
+        "2024-05-29",
+        "2024-08-28",
+    ]
