@@ -57,10 +57,13 @@ def test_get_recent_10q_filings_includes_document_html_when_requested(mock_get, 
     assert result["success"] is True
     assert len(result["filings"]) == 2
     assert result["filings"][0]["document_fetch_success"] is True
-    assert "Quarterly Report" in result["filings"][0]["document_html"]
-    assert "Revenue grew strongly." in result["filings"][0]["document_html"]
+    assert result["filings"][0]["filing_date"] == "2024-05-29"
+    assert result["filings"][1]["filing_date"] == "2024-08-28"
+    assert result["filings"][0]["document_html"] == "<html><body><p>Second filing body.</p></body></html>"
+    assert "Quarterly Report" in result["filings"][1]["document_html"]
+    assert "Revenue grew strongly." in result["filings"][1]["document_html"]
     assert result["filings"][0]["document_html_length"] == len(result["filings"][0]["document_html"])
-    assert result["filings"][1]["document_html"] == "<html><body><p>Second filing body.</p></body></html>"
+    assert result["filings"][1]["document_html_length"] == len(result["filings"][1]["document_html"])
 
 
 @patch("backend.agents.yahoo_finance_agent.time.sleep", return_value=None)
@@ -94,6 +97,49 @@ def test_get_recent_10q_filings_skips_document_download_by_default(mock_get, _mo
     assert len(result["filings"]) == 1
     assert "document_html" not in result["filings"][0]
     assert mock_get.call_count == 2
+
+
+@patch("backend.agents.yahoo_finance_agent.time.sleep", return_value=None)
+@patch("backend.agents.yahoo_finance_agent.requests.get")
+def test_get_recent_10q_filings_sorts_filings_chronologically(mock_get, _mock_sleep):
+    agent = YahooFinanceAgent(user_email="test@example.com")
+
+    company_tickers_payload = {
+        "0": {"ticker": "NVDA", "cik_str": 1045810, "title": "NVIDIA CORP"}
+    }
+    submissions_payload = {
+        "name": "NVIDIA CORP",
+        "filings": {
+            "recent": {
+                "form": ["10-Q", "10-Q", "10-Q"],
+                "accessionNumber": [
+                    "0001045810-24-000123",
+                    "0001045810-24-000121",
+                    "0001045810-24-000122",
+                ],
+                "filingDate": ["2024-08-28", "2024-02-28", "2024-05-29"],
+                "primaryDocument": [
+                    "nvda-20240728x10q.htm",
+                    "nvda-20240128x10q.htm",
+                    "nvda-20240428x10q.htm",
+                ],
+            }
+        },
+    }
+
+    mock_get.side_effect = [
+        _mock_response(payload=company_tickers_payload),
+        _mock_response(payload=submissions_payload),
+    ]
+
+    result = agent.get_recent_10q_filings("NVDA", num_quarters=3)
+
+    assert result["success"] is True
+    assert [filing["filing_date"] for filing in result["filings"]] == [
+        "2024-02-28",
+        "2024-05-29",
+        "2024-08-28",
+    ]
 
 
 def test_prepare_recent_10q_filings_for_chunking_adds_prepared_chunk_data():

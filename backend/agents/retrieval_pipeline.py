@@ -1,5 +1,6 @@
 import math
 import os
+from datetime import datetime
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Protocol
 
@@ -176,14 +177,17 @@ class FilingRetrievalPipeline:
         if not retrieval_result.get("success"):
             return retrieval_result
 
+        ordered_results = order_retrieved_chunks_for_generation(
+            retrieval_result["results"]
+        )
         answer = generation_provider.generate_answer(
             question,
-            retrieval_result["results"],
+            ordered_results,
         )
         return {
             "question": question,
             "answer": answer,
-            "sources": retrieval_result["results"],
+            "sources": ordered_results,
             "success": True,
         }
 
@@ -236,7 +240,9 @@ def build_chunk_records_from_prepared_filings(prepared_filings_data: Dict) -> Li
 
 
 def build_generation_context(retrieved_chunks: List[Dict]) -> str:
-    context_blocks = []
+    context_blocks = [
+        "Retrieved 10-Q excerpts are intentionally ordered chronologically from oldest filing to newest filing."
+    ]
     for index, chunk in enumerate(retrieved_chunks, start=1):
         metadata = (
             f"Ticker: {chunk.get('ticker', 'N/A')} | "
@@ -248,6 +254,18 @@ def build_generation_context(retrieved_chunks: List[Dict]) -> str:
             f"Chunk {index}\n{metadata}\n{chunk.get('text', '')}"
         )
     return "\n\n---\n\n".join(context_blocks)
+
+
+def order_retrieved_chunks_for_generation(retrieved_chunks: List[Dict]) -> List[Dict]:
+    return sorted(
+        retrieved_chunks,
+        key=lambda chunk: (
+            _parse_filing_date(chunk.get("filing_date", "")),
+            chunk.get("accession_number", ""),
+            0 if chunk.get("source_type") == "prose" else 1,
+            chunk.get("chunk_id", ""),
+        ),
+    )
 
 
 def resolve_openai_api_key(api_key: Optional[str] = None) -> str:
@@ -271,3 +289,10 @@ def _cosine_similarity(left: List[float], right: List[float]) -> float:
         return 0.0
 
     return dot_product / (left_norm * right_norm)
+
+
+def _parse_filing_date(date_str: str) -> datetime:
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d")
+    except (TypeError, ValueError):
+        return datetime.max
