@@ -213,6 +213,18 @@ def test_parse_question_metadata_extracts_natural_language_period_end():
     assert metadata["period_end"] == "2025-12-27"
 
 
+def test_parse_question_metadata_classifies_risk_and_management_action_questions():
+    risk = parse_question_metadata(
+        "What are the most material risks explicitly disclosed by management this quarter?"
+    )
+    actions = parse_question_metadata(
+        "What actions has management taken to address these risks or stabilize performance?"
+    )
+
+    assert risk["question_type"] == "risk_material"
+    assert actions["question_type"] == "management_actions"
+
+
 def test_expand_oversized_chunk_records_splits_large_text_and_preserves_metadata():
     long_text = ("Revenue increased strongly. " * 500).strip()
     records = [
@@ -277,6 +289,84 @@ def test_index_chunks_splits_oversized_records_before_embedding():
     assert result["success"] is True
     assert len(pipeline.chunk_records) > 1
     assert all(len(text) <= 6000 for text in embedding_provider.seen_texts)
+
+
+def test_risk_questions_prefer_risk_factor_sections_when_scores_are_otherwise_equal():
+    chunk_records = build_chunk_records_from_prepared_filings(
+        {
+            "ticker": "AAPL",
+            "filings": [
+                {
+                    "filing_date": "2026-01-30",
+                    "accession_number": "0000320193-26-000001",
+                    "quarter": "2026 Q1",
+                    "form_type": "10-Q",
+                    "prepared_chunk_data": {
+                        "prose_chunk_records": [
+                            {
+                                "text": "Management discussed legal exposure.",
+                                "section_name": "ITEM 1A. RISK FACTORS",
+                                "period_end": "Dec 27, 2025",
+                            },
+                            {
+                                "text": "Management discussed legal exposure.",
+                                "section_name": "ITEM 2. MANAGEMENT'S DISCUSSION AND ANALYSIS",
+                                "period_end": "Dec 27, 2025",
+                            },
+                        ]
+                    },
+                }
+            ],
+        }
+    )
+
+    pipeline = FilingRetrievalPipeline(FakeEmbeddingProvider())
+    pipeline.index_chunks(chunk_records)
+    result = pipeline.search(
+        "What are the most material risks explicitly disclosed by management this quarter?",
+        k=1,
+    )
+
+    assert result["results"][0]["section_name"] == "ITEM 1A. RISK FACTORS"
+
+
+def test_management_action_questions_prefer_legal_proceedings_sections_when_scores_are_otherwise_equal():
+    chunk_records = build_chunk_records_from_prepared_filings(
+        {
+            "ticker": "AAPL",
+            "filings": [
+                {
+                    "filing_date": "2026-01-30",
+                    "accession_number": "0000320193-26-000001",
+                    "quarter": "2026 Q1",
+                    "form_type": "10-Q",
+                    "prepared_chunk_data": {
+                        "prose_chunk_records": [
+                            {
+                                "text": "Apple appealed the decision and changed its compliance plan.",
+                                "section_name": "ITEM 3. LEGAL PROCEEDINGS",
+                                "period_end": "Dec 27, 2025",
+                            },
+                            {
+                                "text": "Apple appealed the decision and changed its compliance plan.",
+                                "section_name": "ITEM 2. MANAGEMENT'S DISCUSSION AND ANALYSIS",
+                                "period_end": "Dec 27, 2025",
+                            },
+                        ]
+                    },
+                }
+            ],
+        }
+    )
+
+    pipeline = FilingRetrievalPipeline(FakeEmbeddingProvider())
+    pipeline.index_chunks(chunk_records)
+    result = pipeline.search(
+        "What actions has management taken to address these risks or stabilize performance?",
+        k=1,
+    )
+
+    assert result["results"][0]["section_name"] == "ITEM 3. LEGAL PROCEEDINGS"
 
 
 def test_batch_texts_for_embedding_splits_large_requests():

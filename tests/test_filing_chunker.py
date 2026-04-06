@@ -87,3 +87,42 @@ def test_prepare_filing_html_for_chunking_drops_tables_entirely():
     assert prepared["table_chunks"] == []
     assert "Revenue" not in prepared["prose_text"]
     assert "Trading Symbol" not in prepared["prose_text"]
+
+
+def test_prepare_filing_html_for_chunking_does_not_promote_summary_sentences_to_sections():
+    html = """
+    <html>
+      <body>
+        <h1>Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations</h1>
+        <p>A summary of the Company’s restricted stock unit activity and related information for the three months ended December 27, 2025, is as follows:</p>
+        <p>Share-based compensation expense increased year over year.</p>
+      </body>
+    </html>
+    """
+
+    prepared = prepare_filing_html_for_chunking(html, prose_chunk_size=400, prose_chunk_overlap=0)
+
+    assert len(prepared["prose_chunk_records"]) == 1
+    assert prepared["prose_chunk_records"][0]["section_name"] == "Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations"
+    assert "A summary of the Company’s restricted stock unit activity" in prepared["prose_chunk_records"][0]["text"]
+
+
+def test_prepare_filing_html_for_chunking_does_not_carry_overlap_across_sections():
+    html = """
+    <html>
+      <body>
+        <h1>Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations</h1>
+        <p>Revenue increased due to stronger iPhone demand.</p>
+        <p>Services also contributed to growth.</p>
+        <h2>Legal Proceedings</h2>
+        <p>Apple appealed the EU decision during the quarter.</p>
+      </body>
+    </html>
+    """
+
+    prepared = prepare_filing_html_for_chunking(html, prose_chunk_size=60, prose_chunk_overlap=40)
+
+    assert len(prepared["prose_chunk_records"]) == 2
+    assert prepared["prose_chunk_records"][0]["section_name"] == "Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations"
+    assert prepared["prose_chunk_records"][1]["section_name"] == "Legal Proceedings"
+    assert "Revenue increased due to stronger iPhone demand." not in prepared["prose_chunk_records"][1]["text"]

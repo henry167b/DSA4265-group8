@@ -9,6 +9,21 @@ DATE_PATTERN = re.compile(
     r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},\s+\d{4}\b",
     re.IGNORECASE,
 )
+STRICT_SUBHEADING_PATTERNS = [
+    re.compile(r"^management'?s discussion and analysis of financial condition and results of operations$", re.IGNORECASE),
+    re.compile(r"^results of operations$", re.IGNORECASE),
+    re.compile(r"^liquidity and capital resources$", re.IGNORECASE),
+    re.compile(r"^net sales$", re.IGNORECASE),
+    re.compile(r"^gross margin$", re.IGNORECASE),
+    re.compile(r"^operating expenses$", re.IGNORECASE),
+    re.compile(r"^research and development$", re.IGNORECASE),
+    re.compile(r"^selling,\s*general and administrative$", re.IGNORECASE),
+    re.compile(r"^provision for income taxes$", re.IGNORECASE),
+    re.compile(r"^market risk$", re.IGNORECASE),
+    re.compile(r"^controls and procedures$", re.IGNORECASE),
+    re.compile(r"^legal proceedings$", re.IGNORECASE),
+    re.compile(r"^risk factors$", re.IGNORECASE),
+]
 SKIP_PATTERNS = [
     re.compile(r"^\d+$"),
     re.compile(r"^page \d+$", re.IGNORECASE),
@@ -90,11 +105,17 @@ def _extract_prose_paragraphs(soup: BeautifulSoup) -> List[str]:
 
 
 def _looks_like_heading(line: str) -> bool:
-    if len(line) > 150:
+    if len(line) > 120:
         return False
-    if line.endswith(":"):
+    stripped = line.strip()
+    if any(pattern.match(stripped) for pattern in STRICT_SUBHEADING_PATTERNS):
         return True
-    return line.isupper() and any(char.isalpha() for char in line)
+
+    alpha_chars = [char for char in stripped if char.isalpha()]
+    if not alpha_chars:
+        return False
+    uppercase_ratio = sum(char.isupper() for char in alpha_chars) / len(alpha_chars)
+    return uppercase_ratio >= 0.8 and len(alpha_chars) <= 80
 
 
 def _build_prose_chunk_records(
@@ -106,7 +127,7 @@ def _build_prose_chunk_records(
     current_section = "General"
     buffer: List[str] = []
 
-    def flush_buffer(section_name: str) -> None:
+    def flush_buffer(section_name: str, carry_overlap: bool = True) -> None:
         nonlocal buffer
         if not buffer:
             return
@@ -121,7 +142,7 @@ def _build_prose_chunk_records(
                 "period_end": _infer_period_end(text),
             }
         )
-        if overlap <= 0:
+        if overlap <= 0 or not carry_overlap:
             buffer = []
             return
         retained: List[str] = []
@@ -135,7 +156,7 @@ def _build_prose_chunk_records(
 
     for paragraph in paragraphs:
         if _is_heading_paragraph(paragraph):
-            flush_buffer(current_section)
+            flush_buffer(current_section, carry_overlap=False)
             current_section = paragraph
             continue
 

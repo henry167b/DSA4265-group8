@@ -309,6 +309,7 @@ class FilingRetrievalPipeline:
                     "dense_score": _cosine_similarity(query_vector, vector),
                     "sparse_score": bm25_scores[record_index] if self.bm25_index else 0.0,
                     "metadata_score": _metadata_match_score(record, query_metadata),
+                    "section_score": _section_match_score(record, query_metadata),
                 }
             )
 
@@ -316,6 +317,7 @@ class FilingRetrievalPipeline:
             candidates,
             key=lambda item: (
                 item["dense_score"],
+                item["section_score"],
                 item["metadata_score"],
                 _source_type_preference_bonus(item["record"], query_metadata),
             ),
@@ -325,6 +327,7 @@ class FilingRetrievalPipeline:
             candidates,
             key=lambda item: (
                 item["sparse_score"],
+                item["section_score"],
                 item["metadata_score"],
                 _source_type_preference_bonus(item["record"], query_metadata),
             ),
@@ -335,6 +338,7 @@ class FilingRetrievalPipeline:
             fused.values(),
             key=lambda item: (
                 item["hybrid_score"],
+                item["section_score"],
                 item["metadata_score"],
                 _source_type_preference_bonus(item["record"], query_metadata),
             ),
@@ -352,6 +356,7 @@ class FilingRetrievalPipeline:
                 key=lambda item: (
                     item.get("rerank_score", float("-inf")),
                     item["hybrid_score"],
+                    item["section_score"],
                     item["metadata_score"],
                     _source_type_preference_bonus(item["record"], query_metadata),
                 ),
@@ -369,6 +374,7 @@ class FilingRetrievalPipeline:
                     "sparse_score": item["sparse_score"],
                     "hybrid_score": item["hybrid_score"],
                     "metadata_score": item["metadata_score"],
+                    "section_score": item["section_score"],
                     "rerank_score": item.get("rerank_score"),
                 }
             )
@@ -685,6 +691,10 @@ def _is_retryable_openai_error(exc: Exception) -> bool:
 
 def _infer_query_style(question: str) -> str:
     lowered = question.lower()
+    if any(phrase in lowered for phrase in ["most material risks", "risk explicitly disclosed"]):
+        return "risk_material"
+    if any(phrase in lowered for phrase in ["actions has management taken", "stabilize performance", "address these risks"]):
+        return "management_actions"
     if any(
         phrase in lowered for phrase in [
             "what was",
@@ -704,6 +714,25 @@ def _infer_query_style(question: str) -> str:
 def _source_type_preference_bonus(record: ChunkRecord, query_metadata: Dict[str, Optional[str]]) -> int:
     if query_metadata.get("question_type") == "narrative":
         return 2 if record.source_type == "prose" else 0
+    return 0
+
+
+def _section_match_score(record: ChunkRecord, query_metadata: Dict[str, Optional[str]]) -> int:
+    section = (record.section_name or "").lower()
+    if not section:
+        return 0
+
+    question_type = query_metadata.get("question_type")
+    if question_type == "risk_material":
+        if "risk factors" in section:
+            return 2
+        if "legal proceedings" in section:
+            return 1
+    if question_type == "management_actions":
+        if "legal proceedings" in section or "liquidity and capital resources" in section:
+            return 2
+        if "management's discussion and analysis" in section:
+            return 1
     return 0
 
 
