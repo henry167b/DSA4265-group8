@@ -11,10 +11,12 @@ from RAG_test.common import (
     ensure_repo_on_path,
     load_json,
     raw_filings_path,
+    stub_optional_market_data_dependencies,
     write_json,
 )
 
 ensure_repo_on_path()
+stub_optional_market_data_dependencies()
 
 from backend.agents.filing_chunker import prepare_filing_html_for_chunking
 

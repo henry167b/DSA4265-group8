@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Tuple
 from RAG_test.common import (
     BENCHMARK_DATASET_PATH,
     CHUNKED_FILINGS_DIR,
+    EMBEDDING_CACHE_DIR,
     RESULTS_DIR,
     chunked_filings_path,
     ensure_data_dirs,
@@ -25,10 +26,10 @@ ensure_repo_on_path()
 from backend.agents.retrieval_pipeline import (
     CrossEncoderReranker,
     FilingRetrievalPipeline,
+    JsonEmbeddingCache,
     OpenAIChatGenerationProvider,
     OpenAIEmbeddingProvider,
     build_chunk_records_from_prepared_filings,
-    order_retrieved_chunks_for_generation,
 )
 
 
@@ -57,14 +58,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional cross-encoder reranker model.",
     )
     parser.add_argument(
-        "--disable-reranker",
+        "--enable-reranker",
         action="store_true",
-        help="Disable cross-encoder reranking even if sentence-transformers is available.",
-    )
-    parser.add_argument(
-        "--oracle-generator-test",
-        action="store_true",
-        help="Generate answers again using oracle chunks only.",
+        help="Enable cross-encoder reranking if sentence-transformers is available.",
     )
     parser.add_argument(
         "--llm-judge",
@@ -76,6 +72,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--report-file",
         default=str(RESULTS_DIR / "rag_evaluation_report.json"),
         help="Where to save the evaluation report JSON.",
+    )
+    parser.add_argument(
+        "--disable-embedding-cache",
+        action="store_true",
+        help="Disable persistent embedding caching during evaluation.",
     )
     return parser
 
@@ -148,46 +149,6 @@ Reason: one short paragraph"""
         "correct": (correct_match.group(1).upper() == "YES") if correct_match else None,
         "score": int(score_match.group(1)) if score_match else None,
         "reason": reason_match.group(1).strip() if reason_match else None,
-    }
-
-
-def get_oracle_chunk_ids(example: Dict) -> List[str]:
-    oracle_ids = example.get("oracle_chunk_ids")
-    if isinstance(oracle_ids, list):
-        return [chunk_id for chunk_id in oracle_ids if chunk_id]
-    oracle_id = example.get("oracle_chunk_id")
-    return [oracle_id] if oracle_id else []
-
-
-def precision_at_k(retrieved_ids: List[str], oracle_ids: List[str], k: int) -> Optional[float]:
-    if not oracle_ids:
-        return None
-    return sum(1 for chunk_id in retrieved_ids[:k] if chunk_id in oracle_ids) / max(k, 1)
-
-
-def recall_at_k(retrieved_ids: List[str], oracle_ids: List[str], k: int) -> Optional[float]:
-    if not oracle_ids:
-        return None
-    return sum(1 for chunk_id in retrieved_ids[:k] if chunk_id in oracle_ids) / len(oracle_ids)
-
-
-def mean_reciprocal_rank(retrieved_ids: List[str], oracle_ids: List[str]) -> Optional[float]:
-    if not oracle_ids:
-        return None
-    for rank, chunk_id in enumerate(retrieved_ids, start=1):
-        if chunk_id in oracle_ids:
-            return 1.0 / rank
-    return 0.0
-
-
-def build_chunk_lookup(filings: List[Dict], ticker: str) -> Dict[str, Dict]:
-    prepared_payload = {
-        "ticker": ticker,
-        "filings": filings,
-    }
-    return {
-        record.chunk_id: record.to_dict()
-        for record in build_chunk_records_from_prepared_filings(prepared_payload)
     }
 
 
@@ -295,10 +256,18 @@ def main() -> None:
     ensure_data_dirs()
 
     dataset = load_json(Path(args.dataset))
-    embedding_provider = OpenAIEmbeddingProvider(model=args.embedding_model)
+    embedding_cache = None
+    if not args.disable_embedding_cache:
+        embedding_cache = JsonEmbeddingCache(
+            EMBEDDING_CACHE_DIR / f"{args.embedding_model.replace('/', '__')}.json"
+        )
+    embedding_provider = OpenAIEmbeddingProvider(
+        model=args.embedding_model,
+        cache=embedding_cache,
+    )
     generation_provider = OpenAIChatGenerationProvider(model=args.generation_model)
     reranker = None
-    if not args.disable_reranker:
+    if args.enable_reranker:
         try:
             reranker = CrossEncoderReranker(model_name=args.reranker_model)
         except ImportError:
@@ -322,7 +291,6 @@ def main() -> None:
             reranker=reranker,
             cache=pipeline_cache,
         )
-        chunk_lookup = build_chunk_lookup(filings, ticker)
         answer_result = pipeline.answer_question(
             question=example["question"],
             generation_provider=generation_provider,
@@ -333,14 +301,6 @@ def main() -> None:
         resolved_filing_date = filing_date or (
             filings[0].get("filing_date") if filings else None
         )
-        retrieved_chunk_ids = [chunk.get("chunk_id") for chunk in retrieved_chunks if chunk.get("chunk_id")]
-        oracle_chunk_ids = get_oracle_chunk_ids(example)
-        oracle_chunks = [chunk_lookup[chunk_id] for chunk_id in oracle_chunk_ids if chunk_id in chunk_lookup]
-
-        retrieval_hit = None
-        if oracle_chunk_ids:
-            retrieval_hit = any(chunk_id in oracle_chunk_ids for chunk_id in retrieved_chunk_ids)
-
         oracle_answer_judge = evaluate_oracle_match_with_llm(
             generation_provider,
             example["question"],
@@ -352,18 +312,6 @@ def main() -> None:
             if oracle_answer_judge and oracle_answer_judge.get("correct") is not None
             else answer_matches_oracle(answer, example.get("oracle_answer"))
         )
-        oracle_generated_answer = None
-        oracle_answer_correct = None
-        if args.oracle_generator_test and oracle_chunks:
-            ordered_oracle_chunks = order_retrieved_chunks_for_generation(oracle_chunks)
-            oracle_generated_answer = generation_provider.generate_answer(
-                example["question"],
-                ordered_oracle_chunks,
-            )
-            oracle_answer_correct = answer_matches_oracle(
-                oracle_generated_answer,
-                example.get("oracle_answer"),
-            )
 
         llm_judge = None
         if args.llm_judge:
@@ -380,36 +328,20 @@ def main() -> None:
                 "resolved_filing_date": resolved_filing_date,
                 "generated_answer": answer,
                 "retrieved_chunks": retrieved_chunks,
-                "oracle_chunks": oracle_chunks,
-                "retrieval_hit": retrieval_hit,
-                "precision_at_k": precision_at_k(retrieved_chunk_ids, oracle_chunk_ids, args.k),
-                "recall_at_k": recall_at_k(retrieved_chunk_ids, oracle_chunk_ids, args.k),
-                "mrr": mean_reciprocal_rank(retrieved_chunk_ids, oracle_chunk_ids),
                 "answer_correct": answer_correct,
                 "oracle_answer_judge": oracle_answer_judge,
-                "oracle_generated_answer": oracle_generated_answer,
-                "oracle_answer_correct": oracle_answer_correct,
                 "llm_judge": llm_judge,
             }
         )
 
-    retrieval_rows = [row for row in results if row["retrieval_hit"] is not None]
     answer_rows = [row for row in results if row["answer_correct"] is not None]
-    oracle_rows = [row for row in results if row["oracle_answer_correct"] is not None]
     pipeline_bertscores = optional_bertscore(
         [row.get("generated_answer") or "" for row in answer_rows],
         [row.get("oracle_answer") or "" for row in answer_rows],
     )
-    oracle_bertscores = optional_bertscore(
-        [row.get("oracle_generated_answer") or "" for row in oracle_rows],
-        [row.get("oracle_answer") or "" for row in oracle_rows],
-    )
     if pipeline_bertscores:
         for row, score in zip(answer_rows, pipeline_bertscores):
             row["bertscore_f1"] = score
-    if oracle_bertscores:
-        for row, score in zip(oracle_rows, oracle_bertscores):
-            row["oracle_bertscore_f1"] = score
 
     judge_rows = [row for row in results if row.get("llm_judge")]
     report = {
@@ -418,36 +350,16 @@ def main() -> None:
         "chunk_cache_dir": str(CHUNKED_FILINGS_DIR),
         "embedding_model": args.embedding_model,
         "generation_model": args.generation_model,
-        "reranker_model": None if args.disable_reranker or reranker is None else args.reranker_model,
+        "reranker_model": args.reranker_model if reranker is not None else None,
+        "embedding_cache_file": None if embedding_cache is None else str(embedding_cache.path),
         "k": args.k,
         "summary": {
             "num_examples": len(results),
-            "retrieval_hit_rate": (
-                mean(1.0 if row["retrieval_hit"] else 0.0 for row in retrieval_rows)
-                if retrieval_rows else None
-            ),
-            "precision_at_k": (
-                mean(row["precision_at_k"] for row in retrieval_rows if row["precision_at_k"] is not None)
-                if retrieval_rows else None
-            ),
-            "recall_at_k": (
-                mean(row["recall_at_k"] for row in retrieval_rows if row["recall_at_k"] is not None)
-                if retrieval_rows else None
-            ),
-            "mrr": (
-                mean(row["mrr"] for row in retrieval_rows if row["mrr"] is not None)
-                if retrieval_rows else None
-            ),
             "answer_accuracy": (
                 mean(1.0 if row["answer_correct"] else 0.0 for row in answer_rows)
                 if answer_rows else None
             ),
-            "oracle_generator_accuracy": (
-                mean(1.0 if row["oracle_answer_correct"] else 0.0 for row in oracle_rows)
-                if oracle_rows else None
-            ),
             "pipeline_bertscore_f1": mean(pipeline_bertscores) if pipeline_bertscores else None,
-            "oracle_bertscore_f1": mean(oracle_bertscores) if oracle_bertscores else None,
             "llm_judge_overall": (
                 mean(
                     row["llm_judge"]["scores"]["overall"]
@@ -465,18 +377,8 @@ def main() -> None:
 
     print(f"Saved evaluation report to {report_destination}")
     print(f"Examples evaluated: {len(results)}")
-    if report["summary"]["retrieval_hit_rate"] is not None:
-        print(f"Retrieval hit rate: {report['summary']['retrieval_hit_rate']:.4f}")
-    if report["summary"]["precision_at_k"] is not None:
-        print(f"Precision@{args.k}: {report['summary']['precision_at_k']:.4f}")
-    if report["summary"]["recall_at_k"] is not None:
-        print(f"Recall@{args.k}: {report['summary']['recall_at_k']:.4f}")
-    if report["summary"]["mrr"] is not None:
-        print(f"MRR: {report['summary']['mrr']:.4f}")
     if report["summary"]["answer_accuracy"] is not None:
         print(f"Answer accuracy: {report['summary']['answer_accuracy']:.4f}")
-    if report["summary"]["oracle_generator_accuracy"] is not None:
-        print(f"Oracle answer accuracy: {report['summary']['oracle_generator_accuracy']:.4f}")
 
 
 if __name__ == "__main__":

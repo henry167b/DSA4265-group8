@@ -1,36 +1,37 @@
 # RAG Test Workflow
 
-Recommendation: start with `1` most recent 10-Q filing per company.
+Recommendation: start with the `1` most recent Apple 10-Q filing.
 
 Why:
-- It keeps the benchmark easier to label and debug.
-- It reduces retrieval ambiguity while you are still building oracle answers and oracle chunk ids.
-- It makes answer failures easier to attribute to retrieval vs generation instead of cross-filing confusion.
+- It keeps the benchmark easier to debug.
+- It reduces retrieval ambiguity while you are iterating on prose preprocessing and chunking.
+- It makes answer failures easier to attribute to retrieval vs generation.
 
-Once the single-filing benchmark is stable, scale to `4` filings per company to test temporal reasoning and harder retrieval settings.
+Once the single-filing benchmark is stable, you can scale back out later if needed.
 
 Suggested workflow:
 
-1. Cache raw filings locally:
+1. Cache the raw filing locally:
    `PYTHONPATH=. python RAG_test/cache_raw_filings.py --num-filings 1`
 
-2. Chunk the cached filings locally:
+2. Chunk the cached filing locally:
    `PYTHONPATH=. python RAG_test/cache_chunked_filings.py`
 
 3. Fill in `RAG_test/benchmark_dataset.json` with:
    - `filing_date`
    - `oracle_answer`
-   - `oracle_chunk_id`
 
 4. Run local-cache RAG evaluation:
    `PYTHONPATH=. python RAG_test/run_rag_evaluation.py`
 
+   It also keeps cross-encoder reranking off by default.
+   To turn reranking on later:
+   `PYTHONPATH=. python RAG_test/run_rag_evaluation.py --enable-reranker`
+
 Useful evaluation flags:
 
-- Enable oracle-context generation:
-  `PYTHONPATH=. python RAG_test/run_rag_evaluation.py --oracle-generator-test`
-- Disable cross-encoder reranking:
-  `PYTHONPATH=. python RAG_test/run_rag_evaluation.py --disable-reranker`
+- Enable cross-encoder reranking:
+  `PYTHONPATH=. python RAG_test/run_rag_evaluation.py --enable-reranker`
 - Enable LLM-as-judge scoring:
   `PYTHONPATH=. python RAG_test/run_rag_evaluation.py --llm-judge`
 

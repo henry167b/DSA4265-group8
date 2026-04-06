@@ -7,7 +7,7 @@ sys.modules.setdefault("pandas", SimpleNamespace(MultiIndex=type("MultiIndex", (
 from backend.agents.filing_chunker import prepare_filing_html_for_chunking
 
 
-def test_prepare_filing_html_for_chunking_separates_tables_and_prose():
+def test_prepare_filing_html_for_chunking_keeps_only_prose_content():
     html = """
     <html>
       <body>
@@ -34,14 +34,13 @@ def test_prepare_filing_html_for_chunking_separates_tables_and_prose():
 
     assert "ITEM 1. BUSINESS" in prepared["prose_text"]
     assert "Demand remained strong throughout the quarter." in prepared["prose_text"]
-    assert "Quarterly Revenue by Segment" in prepared["table_groups"]
-    assert "Gaming (2024): 12,000" in prepared["table_groups"]["Quarterly Revenue by Segment"]
-    assert any(chunk.startswith("[Quarterly Revenue by Segment]") for chunk in prepared["table_chunks"])
-    assert prepared["chunks"] == prepared["prose_chunks"] + prepared["table_chunks"]
+    assert prepared["table_groups"] == {}
+    assert prepared["table_structures"] == []
+    assert prepared["table_chunk_records"] == []
+    assert prepared["table_chunks"] == []
+    assert prepared["chunks"] == prepared["prose_chunks"]
     assert prepared["prose_chunk_records"][0]["section_name"] == "ITEM 1. BUSINESS"
-    assert prepared["table_chunk_records"][0]["statement_type"] == "income_statement"
-    assert prepared["table_chunk_records"][0]["segment_name"] == "Data Center"
-    assert prepared["table_chunk_records"][0]["parsing_mode"] == "window"
+    assert all("Data Center" not in chunk for chunk in prepared["chunks"])
 
 
 def test_prepare_filing_html_for_chunking_ignores_non_text_elements():
@@ -63,7 +62,7 @@ def test_prepare_filing_html_for_chunking_ignores_non_text_elements():
     assert "Core operating discussion." in prepared["prose_text"]
 
 
-def test_prepare_filing_html_for_chunking_filters_admin_tables_and_preserves_period_context():
+def test_prepare_filing_html_for_chunking_drops_tables_entirely():
     html = """
     <html>
       <body>
@@ -83,8 +82,8 @@ def test_prepare_filing_html_for_chunking_filters_admin_tables_and_preserves_per
 
     prepared = prepare_filing_html_for_chunking(html)
 
-    assert len(prepared["table_structures"]) == 1
-    table_texts = [record["text"] for record in prepared["table_chunk_records"]]
-    assert any("Revenue (Three months ended October 26, 2025): 57,006" in text for text in table_texts)
-    assert any("Net income (Three months ended October 27, 2024): 19,309" in text for text in table_texts)
-    assert all("Trading Symbol" not in text for text in table_texts)
+    assert prepared["table_structures"] == []
+    assert prepared["table_chunk_records"] == []
+    assert prepared["table_chunks"] == []
+    assert "Revenue" not in prepared["prose_text"]
+    assert "Trading Symbol" not in prepared["prose_text"]

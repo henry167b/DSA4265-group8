@@ -10,15 +10,12 @@ from typing import Dict, List
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RAW_FILINGS_DIR = REPO_ROOT / "RAG_test" / "data" / "raw_filings"
 CHUNKED_FILINGS_DIR = REPO_ROOT / "RAG_test" / "data" / "chunked_filings"
+EMBEDDING_CACHE_DIR = REPO_ROOT / "RAG_test" / "data" / "embedding_cache"
 RESULTS_DIR = REPO_ROOT / "RAG_test" / "results"
 BENCHMARK_DATASET_PATH = REPO_ROOT / "RAG_test" / "benchmark_dataset.json"
 
 COMPANIES: List[Dict[str, str]] = [
-    {"company_name": "NVIDIA", "ticker": "NVDA"},
-    {"company_name": "Alphabet", "ticker": "GOOG"},
-    {"company_name": "Tesla", "ticker": "TSLA"},
     {"company_name": "Apple", "ticker": "AAPL"},
-    {"company_name": "Meta Platforms", "ticker": "META"},
 ]
 
 
@@ -40,6 +37,7 @@ def stub_optional_market_data_dependencies() -> None:
 def ensure_data_dirs() -> None:
     RAW_FILINGS_DIR.mkdir(parents=True, exist_ok=True)
     CHUNKED_FILINGS_DIR.mkdir(parents=True, exist_ok=True)
+    EMBEDDING_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
