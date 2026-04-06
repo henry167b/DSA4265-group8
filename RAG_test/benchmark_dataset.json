@@ -1,0 +1,322 @@
+[
+  {
+    "company_name": "NVIDIA",
+    "ticker": "NVDA",
+    "filing_date": "2025-11-19",
+    "question": "What was total revenue this quarter?",
+    "oracle_answer": "Total revenue was $57.0 billion.",
+    "question_type": "fact_revenue"
+  },
+  {
+    "company_name": "NVIDIA",
+    "ticker": "NVDA",
+    "filing_date": "2025-11-19",
+    "question": "What was net income this quarter?",
+    "oracle_answer": "Net income was $31.9 billion.",
+    "question_type": "fact_profitability"
+  },
+  {
+    "company_name": "NVIDIA",
+    "ticker": "NVDA",
+    "filing_date": "2025-11-19",
+    "question": "How much cash and cash equivalents did the company report?",
+    "oracle_answer": "Cash and cash equivalents were $11.5 billion at quarter end.",
+    "question_type": "fact_balance_sheet"
+  },
+  {
+    "company_name": "NVIDIA",
+    "ticker": "NVDA",
+    "filing_date": "2025-11-19",
+    "question": "What was net cash provided by operating activities?",
+    "oracle_answer": "Net cash provided by operating activities was $66.5 billion year to date.",
+    "question_type": "fact_cash_flow"
+  },
+  {
+    "company_name": "NVIDIA",
+    "ticker": "NVDA",
+    "filing_date": "2025-11-19",
+    "question": "What was research and development expense this quarter?",
+    "oracle_answer": "Research and development expense was $4.7 billion for the quarter.",
+    "question_type": "fact_expense"
+  },
+  {
+    "company_name": "NVIDIA",
+    "ticker": "NVDA",
+    "filing_date": "2025-11-19",
+    "question": "What was Data Center revenue this quarter?",
+    "oracle_answer": "Data Center revenue was $51.2 billion.",
+    "question_type": "segment_fact"
+  },
+  {
+    "company_name": "NVIDIA",
+    "ticker": "NVDA",
+    "filing_date": "2025-11-19",
+    "question": "What does the filing say drove revenue growth this quarter?",
+    "oracle_answer": "The filing says revenue growth was driven mainly by Data Center demand, Blackwell adoption, and AI platform shifts across compute and networking.",
+    "question_type": "narrative_driver"
+  },
+  {
+    "company_name": "NVIDIA",
+    "ticker": "NVDA",
+    "filing_date": "2025-11-19",
+    "question": "Did gross margin improve or decline from the prior-year quarter, and what does the filing attribute that to?",
+    "oracle_answer": "Gross margin improved modestly to 73.4% from 72.4% in the prior-year quarter; the filing ties margin dynamics to the Blackwell ramp, improved mix, and cost structure.",
+    "question_type": "comparison_margin"
+  },
+  {
+    "company_name": "Alphabet",
+    "ticker": "GOOG",
+    "filing_date": "2025-10-30",
+    "question": "What was total revenue this quarter?",
+    "oracle_answer": "Total revenues were $102.3 billion.",
+    "question_type": "fact_revenue"
+  },
+  {
+    "company_name": "Alphabet",
+    "ticker": "GOOG",
+    "filing_date": "2025-10-30",
+    "question": "What was net income this quarter?",
+    "oracle_answer": "Net income was $35.0 billion.",
+    "question_type": "fact_profitability"
+  },
+  {
+    "company_name": "Alphabet",
+    "ticker": "GOOG",
+    "filing_date": "2025-10-30",
+    "question": "How much cash and cash equivalents did the company report?",
+    "oracle_answer": "Cash and cash equivalents were about $23.5 billion at quarter end.",
+    "question_type": "fact_balance_sheet"
+  },
+  {
+    "company_name": "Alphabet",
+    "ticker": "GOOG",
+    "filing_date": "2025-10-30",
+    "question": "What was net cash provided by operating activities?",
+    "oracle_answer": "Net cash provided by operating activities was $112.3 billion year to date.",
+    "question_type": "fact_cash_flow"
+  },
+  {
+    "company_name": "Alphabet",
+    "ticker": "GOOG",
+    "filing_date": "2025-10-30",
+    "question": "What was research and development expense this quarter?",
+    "oracle_answer": "Research and development expense was $15.2 billion for the quarter.",
+    "question_type": "fact_expense"
+  },
+  {
+    "company_name": "Alphabet",
+    "ticker": "GOOG",
+    "filing_date": "2025-10-30",
+    "question": "What was Google Cloud revenue this quarter?",
+    "oracle_answer": "Google Cloud revenue was $15.2 billion.",
+    "question_type": "segment_fact"
+  },
+  {
+    "company_name": "Alphabet",
+    "ticker": "GOOG",
+    "filing_date": "2025-10-30",
+    "question": "What does the filing say drove revenue growth this quarter?",
+    "oracle_answer": "The filing says growth was driven by continued strength in Google Services advertising and further expansion in Google Cloud, with AI-related offerings and infrastructure supporting demand.",
+    "question_type": "narrative_driver"
+  },
+  {
+    "company_name": "Alphabet",
+    "ticker": "GOOG",
+    "filing_date": "2025-10-30",
+    "question": "Did gross margin improve or decline from the prior-year quarter, and what does the filing attribute that to?",
+    "oracle_answer": "The filing does not present a single reported gross margin figure; instead it points to stronger profitability as revenue, especially in Google Services and Google Cloud, grew faster than many costs.",
+    "question_type": "comparison_margin"
+  },
+  {
+    "company_name": "Tesla",
+    "ticker": "TSLA",
+    "filing_date": "2025-10-23",
+    "question": "What was total revenue this quarter?",
+    "oracle_answer": "Total revenues were $28.1 billion.",
+    "question_type": "fact_revenue"
+  },
+  {
+    "company_name": "Tesla",
+    "ticker": "TSLA",
+    "filing_date": "2025-10-23",
+    "question": "What was net income this quarter?",
+    "oracle_answer": "Net income was about $2.2 billion.",
+    "question_type": "fact_profitability"
+  },
+  {
+    "company_name": "Tesla",
+    "ticker": "TSLA",
+    "filing_date": "2025-10-23",
+    "question": "How much cash and cash equivalents did the company report?",
+    "oracle_answer": "Cash and cash equivalents were $18.3 billion at quarter end.",
+    "question_type": "fact_balance_sheet"
+  },
+  {
+    "company_name": "Tesla",
+    "ticker": "TSLA",
+    "filing_date": "2025-10-23",
+    "question": "What was net cash provided by operating activities?",
+    "oracle_answer": "Net cash provided by operating activities was $10.9 billion year to date.",
+    "question_type": "fact_cash_flow"
+  },
+  {
+    "company_name": "Tesla",
+    "ticker": "TSLA",
+    "filing_date": "2025-10-23",
+    "question": "What was research and development expense this quarter?",
+    "oracle_answer": "Research and development expense was $1.6 billion for the quarter.",
+    "question_type": "fact_expense"
+  },
+  {
+    "company_name": "Tesla",
+    "ticker": "TSLA",
+    "filing_date": "2025-10-23",
+    "question": "What was Automotive revenues this quarter?",
+    "oracle_answer": "Automotive revenues were $21.2 billion.",
+    "question_type": "segment_fact"
+  },
+  {
+    "company_name": "Tesla",
+    "ticker": "TSLA",
+    "filing_date": "2025-10-23",
+    "question": "What does the filing say drove automotive and total revenue performance this quarter?",
+    "oracle_answer": "The filing indicates automotive revenue was supported by vehicle-related sales and that total revenue also benefited from growth in energy generation and storage and services.",
+    "question_type": "narrative_driver"
+  },
+  {
+    "company_name": "Tesla",
+    "ticker": "TSLA",
+    "filing_date": "2025-10-23",
+    "question": "Did gross margin improve or decline from the prior-year quarter, and what does the filing attribute that to?",
+    "oracle_answer": "Automotive gross margin declined to 17.0% from 20.1% in the prior-year quarter; the filing also reflects pricing and cost pressure, alongside restructuring and efficiency actions.",
+    "question_type": "comparison_margin"
+  },
+  {
+    "company_name": "Apple",
+    "ticker": "AAPL",
+    "filing_date": "2026-01-30",
+    "question": "What was total revenue this quarter?",
+    "oracle_answer": "Total revenue was $143.8 billion.",
+    "question_type": "fact_revenue"
+  },
+  {
+    "company_name": "Apple",
+    "ticker": "AAPL",
+    "filing_date": "2026-01-30",
+    "question": "What was net income this quarter?",
+    "oracle_answer": "Net income was $42.1 billion.",
+    "question_type": "fact_profitability"
+  },
+  {
+    "company_name": "Apple",
+    "ticker": "AAPL",
+    "filing_date": "2026-01-30",
+    "question": "How much cash and cash equivalents did the company report?",
+    "oracle_answer": "Cash and cash equivalents were $45.3 billion at quarter end.",
+    "question_type": "fact_balance_sheet"
+  },
+  {
+    "company_name": "Apple",
+    "ticker": "AAPL",
+    "filing_date": "2026-01-30",
+    "question": "What was net cash provided by operating activities?",
+    "oracle_answer": "Cash generated by operating activities was $53.9 billion.",
+    "question_type": "fact_cash_flow"
+  },
+  {
+    "company_name": "Apple",
+    "ticker": "AAPL",
+    "filing_date": "2026-01-30",
+    "question": "What was research and development expense this quarter?",
+    "oracle_answer": "Research and development expense was $10.9 billion for the quarter.",
+    "question_type": "fact_expense"
+  },
+  {
+    "company_name": "Apple",
+    "ticker": "AAPL",
+    "filing_date": "2026-01-30",
+    "question": "What was iPhone net sales this quarter?",
+    "oracle_answer": "iPhone net sales were $85.3 billion.",
+    "question_type": "segment_fact"
+  },
+  {
+    "company_name": "Apple",
+    "ticker": "AAPL",
+    "filing_date": "2026-01-30",
+    "question": "What does the filing say drove revenue performance this quarter?",
+    "oracle_answer": "The filing says revenue performance was driven mainly by higher iPhone and Services sales, with stronger Pro-model demand and additional support from iPad.",
+    "question_type": "narrative_driver"
+  },
+  {
+    "company_name": "Apple",
+    "ticker": "AAPL",
+    "filing_date": "2026-01-30",
+    "question": "Did gross margin improve or decline from the prior-year quarter, and what does the filing attribute that to?",
+    "oracle_answer": "Gross margin improved, with gross profit rising to $69.2 billion on $143.8 billion of net sales versus $58.3 billion on $124.3 billion a year earlier; the filing points to stronger product mix and Services.",
+    "question_type": "comparison_margin"
+  },
+  {
+    "company_name": "Meta",
+    "ticker": "META",
+    "filing_date": "2025-10-30",
+    "question": "What was total revenue this quarter?",
+    "oracle_answer": "Total revenue was $51.2 billion.",
+    "question_type": "fact_revenue"
+  },
+  {
+    "company_name": "Meta",
+    "ticker": "META",
+    "filing_date": "2025-10-30",
+    "question": "What was net income this quarter?",
+    "oracle_answer": "Net income was $15.7 billion.",
+    "question_type": "fact_profitability"
+  },
+  {
+    "company_name": "Meta",
+    "ticker": "META",
+    "filing_date": "2025-10-30",
+    "question": "How much cash and cash equivalents did the company report?",
+    "oracle_answer": "Cash and cash equivalents were about $10.2 billion at quarter end.",
+    "question_type": "fact_balance_sheet"
+  },
+  {
+    "company_name": "Meta",
+    "ticker": "META",
+    "filing_date": "2025-10-30",
+    "question": "What was net cash provided by operating activities?",
+    "oracle_answer": "Net cash provided by operating activities was $79.6 billion year to date.",
+    "question_type": "fact_cash_flow"
+  },
+  {
+    "company_name": "Meta",
+    "ticker": "META",
+    "filing_date": "2025-10-30",
+    "question": "What was research and development expense this quarter?",
+    "oracle_answer": "Research and development expense was $15.1 billion for the quarter.",
+    "question_type": "fact_expense"
+  },
+  {
+    "company_name": "Meta",
+    "ticker": "META",
+    "filing_date": "2025-10-30",
+    "question": "What was Family of Apps revenue this quarter?",
+    "oracle_answer": "Family of Apps revenue was $50.8 billion.",
+    "question_type": "segment_fact"
+  },
+  {
+    "company_name": "Meta",
+    "ticker": "META",
+    "filing_date": "2025-10-30",
+    "question": "What does the filing say drove revenue growth this quarter?",
+    "oracle_answer": "The filing indicates revenue growth was driven primarily by the Family of Apps advertising business, helped by stronger ad demand and monetization.",
+    "question_type": "narrative_driver"
+  },
+  {
+    "company_name": "Meta",
+    "ticker": "META",
+    "filing_date": "2025-10-30",
+    "question": "Did gross margin improve or decline from the prior-year quarter, and what does the filing attribute that to?",
+    "oracle_answer": "The filing does not report a standalone gross margin metric; instead it shows improved profitability with total revenue up to $51.2 billion and Family of Apps remaining the main earnings driver.",
+    "question_type": "comparison_margin"
+  }
+]

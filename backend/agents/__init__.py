@@ -8,7 +8,7 @@ from .retrieval_pipeline import (
     order_retrieved_chunks_for_generation,
     resolve_openai_api_key,
 )
-from .yahoo_finance_agent import YahooFinanceAgent
+from .financial_data_agent import YahooFinanceAgent
 
 try:
     from .report_draft_agent import ReportDraftAgent
