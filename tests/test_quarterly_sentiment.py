@@ -2,6 +2,7 @@
 
 import os
 import sys
+from collections import Counter
 
 # Make sure the project root is importable when running:
 # python .\tests\test_quarterly_sentiment.py
@@ -13,21 +14,39 @@ from backend.agents.yahoo_finance_agent import YahooFinanceAgent
 from backend.agents.quarterly_sentiment import QuarterlySentimentAnalyzer
 
 
+def print_chunk_preview(chunks, max_chars=220):
+    if not chunks:
+        print("  No retrieved chunks.")
+        return
+
+    for i, chunk in enumerate(chunks[:3], start=1):
+        text = str(chunk.get("text", "")).replace("\n", " ").strip()
+        section = str(chunk.get("section", "")).strip()
+        score = chunk.get("score", None)
+        rerank_score = chunk.get("rerank_score", None)
+
+        score_str = f"{score:.4f}" if isinstance(score, (int, float)) else "N/A"
+        rerank_str = f"{rerank_score:.4f}" if isinstance(rerank_score, (int, float)) else "N/A"
+
+        print(f"  [{i}] section={section or 'N/A'} score={score_str} rerank={rerank_str}")
+        print(f"      {text[:max_chars]}{'...' if len(text) > max_chars else ''}")
+
+
 def main() -> None:
-    ticker = "NVDA"
+    ticker = "MSFT"
 
     yahoo_agent = YahooFinanceAgent()
     analyzer = QuarterlySentimentAnalyzer(
         yahoo_agent=yahoo_agent,
         top_k=5,
         num_quarters=4,
-        price_label_threshold=0.02,
+        price_label_threshold=0.05,
     )
 
     result = analyzer.analyze_ticker(ticker)
 
     print(f"\nQuarterly sentiment analysis for {ticker}")
-    print("=" * 110)
+    print("=" * 120)
 
     if not result.get("success"):
         print("Failed:", result.get("error"))
@@ -39,7 +58,10 @@ def main() -> None:
         f"{'Quarter':<10} | {'Filing Date':<12} | {'Predicted':<10} | {'Realized':<10} | "
         f"{'% Change':>10} | {'Start Price':>12} | {'End Price':>10}"
     )
-    print("-" * 110)
+    print("-" * 120)
+
+    labels = []
+    raw_answers = []
 
     for quarter_data in quarterly_results:
         quarter = quarter_data.get("quarter", "")
@@ -60,11 +82,36 @@ def main() -> None:
             f"{pct_change_str:>10} | {start_price_str:>12} | {end_price_str:>10}"
         )
 
+        print("\n--- DEBUG ---")
+        print("Raw Answer:")
+        print(quarter_data.get("predicted_raw_answer", ""))
+
+        print("\nExtracted Reason:")
+        print(quarter_data.get("predicted_reason", ""))
+
+        print("\n--- RETRIEVED CHUNKS (Top 3 preview) ---")
+        print_chunk_preview(quarter_data.get("retrieved_chunks", []))
+
+        print("-" * 120)
+
+        labels.append(predicted)
+        raw_answers.append(quarter_data.get("predicted_raw_answer", ""))
+
     print("\nSummary")
-    print("=" * 110)
+    print("=" * 120)
     print(f"Generated at: {result.get('generated_at')}")
     print(f"Filing count: {result.get('filing_count')}")
     print(f"Chunk count: {result.get('chunk_count')}")
+
+    print("\nDiagnostics")
+    print("=" * 120)
+    print("Label distribution:", dict(Counter(labels)))
+    print("Unique raw answers:", len(set(raw_answers)), "/", len(raw_answers))
+
+    if len(set(raw_answers)) == 1 and raw_answers:
+        print("WARNING: All raw answers are identical.")
+    if len(set(labels)) == 1 and labels:
+        print("WARNING: All predicted labels are identical.")
 
 
 if __name__ == "__main__":

@@ -6,16 +6,16 @@ import re
 import warnings
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
-from transformers import pipeline
 
 import pandas as pd
 import torch
 import yfinance as yf
+from sentence_transformers import CrossEncoder
+from transformers import pipeline
 
 from .retrieval_pipeline import (
     FilingRetrievalPipeline,
     build_chunk_records_from_prepared_filings,
-    build_generation_context,
     order_retrieved_chunks_for_generation,
 )
 from .yahoo_finance_agent import YahooFinanceAgent
@@ -23,70 +23,203 @@ from .yahoo_finance_agent import YahooFinanceAgent
 logger = logging.getLogger(__name__)
 
 
+class Reranker:
+    def __init__(self):
+        self.model = CrossEncoder("cross-encoder/ms-marco-MiniLM-L6-v2")
+
+    def rerank(self, query: str, chunks: List[Dict], top_k: int = 5):
+        if not chunks:
+            return []
+
+        pairs = [(query, c["text"]) for c in chunks]
+        scores = self.model.predict(pairs)
+
+        for c, s in zip(chunks, scores):
+            c["rerank_score"] = float(s)
+
+        chunks.sort(key=lambda x: x["rerank_score"], reverse=True)
+        return chunks[:top_k]
+
+
 class SentimentEmbeddingProvider:
     """
     Local embedding provider using sentence-transformers.
-
-    Default model:
-    - sentence-transformers/all-MiniLM-L6-v2
     """
 
-    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2") -> None:
-        try:
-            from sentence_transformers import SentenceTransformer
-        except ImportError as exc:
-            raise ImportError(
-                "sentence-transformers is required for SentimentEmbeddingProvider. "
-                "Install it with: pip install sentence-transformers"
-            ) from exc
+    def __init__(self, model_name: str = "BAAI/bge-base-en-v1.5") -> None:
+        from sentence_transformers import SentenceTransformer
 
-        self.model_name = model_name
         self.model = SentenceTransformer(model_name)
 
     def embed_texts(self, texts: List[str]) -> List[List[float]]:
-        if not texts:
-            return []
-        vectors = self.model.encode(texts, normalize_embeddings=True)
-        return [vector.tolist() for vector in vectors]
+        texts = [
+            "Represent this sentence for searching relevant passages: " + t
+            for t in texts
+        ]
+        return self.model.encode(texts, normalize_embeddings=True).tolist()
 
     def embed_query(self, text: str) -> List[float]:
-        vector = self.model.encode([text], normalize_embeddings=True)[0]
-        return vector.tolist()
+        text = "Represent this sentence for searching relevant passages: " + text
+        return self.model.encode([text], normalize_embeddings=True)[0].tolist()
 
 
 class SentimentLLMGenerationProvider:
     """
-    Local generation provider using a Hugging Face seq2seq model.
+    Label provider using zero-shot classification.
 
-    Default model:
-    - google/flan-t5-small
+    It returns a structured answer:
+    Label: Bullish|Neutral|Bearish
+    Reason: ...
     """
 
-    def __init__(self, model_name: str = "google/flan-t5-small"):
-        # Use GPU if available
-        device = 0 if torch.cuda.is_available() else -1
+    def __init__(self, model_name: str = "facebook/bart-large-mnli"):
+        self.model_name = model_name
+        self.classifier = None
 
-        self.generator = pipeline(
-            task="text-generation",
-            model=model_name,
-            device=device,
-        )
+        try:
+            device = 0 if torch.cuda.is_available() else -1
+            self.classifier = pipeline(
+                task="zero-shot-classification",
+                model=model_name,
+                device=device,
+            )
+            logger.info("Loaded zero-shot classifier: %s", model_name)
+        except Exception as exc:
+            logger.warning(
+                "Failed to load zero-shot classifier %s: %s",
+                model_name,
+                exc,
+            )
+            self.classifier = None
 
     def generate_answer(self, question: str, retrieved_chunks: list) -> str:
-        context = "\n\n".join([chunk["text"] for chunk in retrieved_chunks])
-        prompt = (
-            f"Using the following SEC 10-Q excerpts:\n{context}\n\n"
-            f"Answer the following question and label as Bullish, Neutral, or Bearish:\n{question}"
+        evidence_chunks = self._select_evidence_chunks(retrieved_chunks)
+        evidence_text = self._build_evidence_text(evidence_chunks)
+
+        if not evidence_text.strip():
+            return "Label: Unknown\nReason: No usable evidence excerpts were available."
+
+        label = self._classify_evidence(evidence_text)
+        reason = self._build_reason(evidence_chunks, label)
+
+        return f"Label: {label}\nReason: {reason}"
+
+    def _select_evidence_chunks(self, retrieved_chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Keep the most useful chunks and avoid feeding the classifier only boilerplate.
+        Prefer MD&A / operating / financial sections, then fill the rest by score.
+        """
+        if not retrieved_chunks:
+            return []
+
+        ranked = sorted(
+            retrieved_chunks,
+            key=lambda c: float(c.get("rerank_score", c.get("score", 0.0))),
+            reverse=True,
         )
-        output = self.generator(prompt, max_length=256, do_sample=False)
-        return output[0]["generated_text"].strip()
+
+        priority_keywords = [
+            "management's discussion and analysis",
+            "discussion and analysis",
+            "results of operations",
+            "financial statements",
+            "consolidated statements",
+            "gross margin",
+            "operating expenses",
+            "segment reporting",
+            "revenue",
+            "cash flow",
+            "liquidity",
+            "debt",
+        ]
+
+        selected: List[Dict[str, Any]] = []
+        used_indices = set()
+
+        def section_text(chunk: Dict[str, Any]) -> str:
+            return f"{str(chunk.get('section', '')).lower()} {str(chunk.get('text', '')).lower()}"
+
+        for keyword in priority_keywords:
+            best_idx = None
+            best_score = None
+            for i, chunk in enumerate(ranked):
+                if i in used_indices:
+                    continue
+                text = section_text(chunk)
+                if keyword in text:
+                    score = float(chunk.get("rerank_score", chunk.get("score", 0.0)))
+                    if best_score is None or score > best_score:
+                        best_score = score
+                        best_idx = i
+            if best_idx is not None:
+                selected.append(ranked[best_idx])
+                used_indices.add(best_idx)
+
+        for i, chunk in enumerate(ranked):
+            if i in used_indices:
+                continue
+            selected.append(chunk)
+            used_indices.add(i)
+            if len(selected) >= min(5, len(ranked)):
+                break
+
+        return selected
+
+    def _build_evidence_text(self, chunks: List[Dict[str, Any]]) -> str:
+        parts: List[str] = []
+        for i, chunk in enumerate(chunks, start=1):
+            section = str(chunk.get("section", "")).strip()
+            text = str(chunk.get("text", "")).strip()
+            if not text:
+                continue
+            text = text[:1200]
+            if section:
+                parts.append(f"[{i} | {section}]\n{text}")
+            else:
+                parts.append(f"[{i}]\n{text}")
+
+        evidence_text = "\n\n".join(parts)
+        if len(evidence_text) > 12000:
+            evidence_text = evidence_text[:12000]
+        return evidence_text
+
+    def _classify_evidence(self, evidence_text: str) -> str:
+        if self.classifier is None:
+            return "Unknown"
+
+        try:
+            result = self.classifier(
+                evidence_text,
+                candidate_labels=["Bullish", "Neutral", "Bearish"],
+                hypothesis_template="The filing is {} for the stock next quarter.",
+                multi_label=False,
+            )
+            if isinstance(result, dict) and result.get("labels"):
+                top_label = str(result["labels"][0]).strip().capitalize()
+                if top_label in {"Bullish", "Neutral", "Bearish"}:
+                    return top_label
+        except Exception as exc:
+            logger.warning("Zero-shot classification failed: %s", exc)
+
+        return "Unknown"
+
+    def _build_reason(self, chunks: List[Dict[str, Any]], label: str) -> str:
+        if not chunks:
+            return "No usable evidence excerpts were available."
+
+        text = " ".join(str(chunk.get("text", "")) for chunk in chunks)
+        sentences = re.split(r"(?<=[.!?])\s+", text)
+        sentences = [s.strip() for s in sentences if s.strip()]
+
+        if sentences:
+            return sentences[0][:220]
+
+        return "The classifier used the selected filing excerpts."
+
 
 class QuarterlySentimentAnalyzer:
     """
     4-quarter 10-Q sentiment analyzer.
-
-    Reuses your existing filing fetching/chunking utilities and keeps the analyzer
-    fully free by using local Hugging Face models.
     """
 
     def __init__(
@@ -115,10 +248,13 @@ class QuarterlySentimentAnalyzer:
         self.table_window = table_window
         self.table_overlap = table_overlap
 
-        self.embedding_provider = embedding_provider or SentimentEmbeddingProvider()
+        self.embedding_provider = embedding_provider or SentimentEmbeddingProvider(
+            model_name="BAAI/bge-base-en-v1.5"
+        )
         self.sentiment_llm_provider = sentiment_llm_provider or SentimentLLMGenerationProvider()
 
         self.pipeline = FilingRetrievalPipeline(self.embedding_provider)
+        self.reranker = Reranker()
 
     def analyze_ticker(self, ticker: str, num_quarters: Optional[int] = None) -> Dict[str, Any]:
         """
@@ -236,19 +372,23 @@ class QuarterlySentimentAnalyzer:
         scored_chunks: List[Dict[str, Any]] = []
 
         for record, vector in zip(self.pipeline.chunk_records, self.pipeline.chunk_vectors):
-            if getattr(record, "accession_number", "") != accession_number:
+            record_accession = self._get_record_accession(record)
+            if record_accession != accession_number:
                 continue
 
             score = self._cosine_similarity(query_vector, vector)
             scored_chunks.append(
                 {
-                    **record.to_dict(),
+                    **self._record_to_dict(record),
                     "score": round(score, 6),
                 }
             )
 
         scored_chunks.sort(key=lambda item: item["score"], reverse=True)
-        return scored_chunks[: max(1, k)]
+        top_chunks = scored_chunks[:20]
+
+        reranked = self.reranker.rerank(query, top_chunks, top_k=k)
+        return reranked
 
     def _build_retrieval_query(self, filing: Dict[str, Any]) -> str:
         quarter = filing.get("quarter", "this quarter")
@@ -267,9 +407,6 @@ class QuarterlySentimentAnalyzer:
         filing: Dict[str, Any],
         retrieved_chunks: List[Dict[str, Any]],
     ) -> Dict[str, str]:
-        """
-        Use the sentiment LLM provider to predict Bullish / Neutral / Bearish.
-        """
         if not retrieved_chunks:
             return {
                 "label": "Unknown",
@@ -277,28 +414,18 @@ class QuarterlySentimentAnalyzer:
                 "raw_answer": "",
             }
 
-        threshold_pct = self.price_label_threshold * 100.0
         quarter = filing.get("quarter", "N/A")
-        filing_date = filing.get("filing_date", "N/A")
 
         question = (
-            f"You are analyzing a 10-Q filing for ticker {ticker}.\n"
-            f"Filing quarter: {quarter}\n"
-            f"Filing date: {filing_date}\n\n"
-            f"Task: predict the stock label for the NEXT quarter based only on the "
-            f"retrieved 10-Q context.\n\n"
-            f"Label definitions:\n"
-            f"- Bullish: expected next-quarter return is at least +{threshold_pct:.1f}%\n"
-            f"- Neutral: expected next-quarter return is between -{threshold_pct:.1f}% "
-            f"and +{threshold_pct:.1f}%\n"
-            f"- Bearish: expected next-quarter return is at most -{threshold_pct:.1f}%\n\n"
-            f"Return exactly two lines:\n"
-            f"Label: <Bullish|Neutral|Bearish>\n"
-            f"Reason: <one short sentence>"
+            f"Analyze the following 10-Q excerpts for {ticker} ({quarter}). "
+            f"Determine whether the company's fundamentals suggest the stock will go UP, DOWN, "
+            f"or STAY FLAT next quarter. Focus on revenue, margins, cash flow, debt, guidance, "
+            f"risks, and cost trends."
         )
 
+        ordered_chunks = order_retrieved_chunks_for_generation(retrieved_chunks)
+
         try:
-            ordered_chunks = order_retrieved_chunks_for_generation(retrieved_chunks)
             raw_answer = self.sentiment_llm_provider.generate_answer(
                 question=question,
                 retrieved_chunks=ordered_chunks,
@@ -315,6 +442,9 @@ class QuarterlySentimentAnalyzer:
 
         label = self._extract_label_from_answer(raw_answer)
         reason = self._extract_reason_from_answer(raw_answer)
+
+        if not reason:
+            reason = "No reason returned by the model."
 
         return {
             "label": label,
@@ -471,7 +601,7 @@ class QuarterlySentimentAnalyzer:
             if stripped.lower().startswith("label"):
                 _, _, value = stripped.partition(":")
                 candidate = value.strip()
-                match = re.search(r"\b(bullish|neutral|bearish)\b", candidate, re.IGNORECASE)
+                match = re.fullmatch(r"(bullish|neutral|bearish)", candidate, re.IGNORECASE)
                 if match:
                     return match.group(1).capitalize()
 
@@ -490,11 +620,21 @@ class QuarterlySentimentAnalyzer:
 
         for line in raw_answer.splitlines():
             stripped = line.strip()
-            if stripped.lower().startswith("reason"):
-                _, _, value = stripped.partition(":")
-                return value.strip()
+            if not stripped.lower().startswith("reason"):
+                continue
 
-        return raw_answer.strip()
+            _, _, value = stripped.partition(":")
+            candidate = value.strip()
+
+            if not candidate:
+                continue
+
+            if candidate.startswith("<") and candidate.endswith(">"):
+                continue
+
+            return candidate
+
+        return ""
 
     def _label_from_pct_change(self, pct_change: float) -> str:
         """
@@ -513,6 +653,22 @@ class QuarterlySentimentAnalyzer:
             return datetime.strptime(date_str, "%Y-%m-%d")
         except Exception:
             return None
+
+    def _get_record_accession(self, record: Any) -> str:
+        if isinstance(record, dict):
+            return str(record.get("accession_number", ""))
+        return str(getattr(record, "accession_number", ""))
+
+    def _record_to_dict(self, record: Any) -> Dict[str, Any]:
+        if isinstance(record, dict):
+            return dict(record)
+        if hasattr(record, "to_dict"):
+            return record.to_dict()
+        return {
+            "text": getattr(record, "text", ""),
+            "section": getattr(record, "section", ""),
+            "accession_number": getattr(record, "accession_number", ""),
+        }
 
     def _cosine_similarity(
         self,
