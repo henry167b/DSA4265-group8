@@ -22,6 +22,74 @@ DATE_PATTERN = re.compile(
     r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},\s+\d{4}\b",
     re.IGNORECASE,
 )
+QUERY_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "by",
+    "could",
+    "did",
+    "does",
+    "for",
+    "forward",
+    "from",
+    "has",
+    "have",
+    "how",
+    "in",
+    "is",
+    "main",
+    "most",
+    "of",
+    "or",
+    "quarter",
+    "the",
+    "these",
+    "this",
+    "to",
+    "upcoming",
+    "was",
+    "were",
+    "what",
+    "which",
+}
+QUESTION_TYPE_SECTION_HINTS = {
+    "risk_material": ["risk factors", "legal proceedings", "management's discussion and analysis"],
+    "management_actions": ["legal proceedings", "liquidity and capital resources", "management's discussion and analysis"],
+    "revenue_driver": ["net sales", "results of operations", "management's discussion and analysis"],
+    "forward_revenue_driver": ["net sales", "results of operations", "management's discussion and analysis"],
+    "profitability_margin": ["gross margin", "results of operations", "management's discussion and analysis"],
+    "forward_pressure": ["risk factors", "gross margin", "market risk", "management's discussion and analysis"],
+    "liquidity": ["liquidity and capital resources", "cash flows", "management's discussion and analysis"],
+    "cash_flow": ["cash flows", "liquidity and capital resources", "management's discussion and analysis"],
+    "fact": ["results of operations", "management's discussion and analysis"],
+    "narrative": ["results of operations", "management's discussion and analysis"],
+}
+QUESTION_TYPE_METRIC_ALIASES = {
+    "risk_material": ["risk", "legal", "regulatory", "fine", "proceedings"],
+    "management_actions": ["appealed", "compliance", "hedging", "liquidity", "mitigate", "stabilize"],
+    "revenue_driver": ["revenue", "net sales", "sales", "driver", "growth", "decline", "segment"],
+    "forward_revenue_driver": ["revenue", "net sales", "sales", "driver", "outlook", "demand"],
+    "profitability_margin": ["profitability", "gross margin", "margin", "operating income", "net income", "product gross margin", "services gross margin"],
+    "forward_pressure": ["pressure", "headwind", "cost", "expense", "tariff", "volatility", "downward pressure"],
+    "liquidity": ["liquidity", "capital resources", "cash", "cash equivalents", "debt"],
+    "cash_flow": ["cash flow", "operating cash flow", "investing", "financing", "liquidity"],
+}
+QUESTION_TYPE_SOURCE_PREFERENCES = {
+    "risk_material": ["prose", "table"],
+    "management_actions": ["prose", "table"],
+    "revenue_driver": ["prose", "table"],
+    "forward_revenue_driver": ["prose", "table"],
+    "profitability_margin": ["table", "prose"],
+    "forward_pressure": ["prose", "table"],
+    "liquidity": ["table", "prose"],
+    "cash_flow": ["table", "prose"],
+    "fact": ["table", "prose"],
+    "narrative": ["prose", "table"],
+    "general": ["prose", "table"],
+}
 
 
 class EmbeddingProvider(Protocol):
@@ -294,53 +362,62 @@ class FilingRetrievalPipeline:
                 "error": "No indexed chunks available",
             }
 
-        query_vector = self.embedding_provider.embed_query(query)
-        query_metadata = parse_question_metadata(query)
-        query_tokens = _tokenize_for_bm25(query)
-        bm25_scores = self.bm25_index.score(query_tokens) if self.bm25_index else [0.0] * len(self.chunk_records)
+        query_plan = build_query_plan(query)
+        subqueries = query_plan.get("subqueries") or [query]
+        query_vectors = [self.embedding_provider.embed_query(subquery) for subquery in subqueries]
+        bm25_scores_by_subquery = [
+            self.bm25_index.score(_tokenize_for_bm25(subquery))
+            if self.bm25_index else [0.0] * len(self.chunk_records)
+            for subquery in subqueries
+        ]
 
         candidates = []
         for record_index, (record, vector) in enumerate(zip(self.chunk_records, self.chunk_vectors)):
+            dense_scores = [
+                _cosine_similarity(query_vector, vector)
+                for query_vector in query_vectors
+            ]
+            sparse_scores = [
+                subquery_scores[record_index]
+                for subquery_scores in bm25_scores_by_subquery
+            ]
             candidates.append(
                 {
                     "record_index": record_index,
                     "record": record,
                     "vector": vector,
-                    "dense_score": _cosine_similarity(query_vector, vector),
-                    "sparse_score": bm25_scores[record_index] if self.bm25_index else 0.0,
-                    "metadata_score": _metadata_match_score(record, query_metadata),
-                    "section_score": _section_match_score(record, query_metadata),
+                    "dense_scores": dense_scores,
+                    "sparse_scores": sparse_scores,
+                    "dense_score": max(dense_scores) if dense_scores else 0.0,
+                    "sparse_score": max(sparse_scores) if sparse_scores else 0.0,
+                    "metadata_score": _metadata_match_score(record, query_plan),
+                    "section_score": _section_match_score(record, query_plan),
+                    "source_type_bonus": _source_type_preference_bonus(record, query_plan),
+                    "metric_score": _metric_alias_match_score(record, query_plan),
+                    "numeric_score": _numeric_evidence_score(record, query_plan),
+                    "coverage_score": _query_coverage_score(dense_scores, sparse_scores),
                 }
             )
 
-        dense_sorted = sorted(
+        ranked_lists = _build_ranked_candidate_lists(
             candidates,
-            key=lambda item: (
-                item["dense_score"],
-                item["section_score"],
-                item["metadata_score"],
-                _source_type_preference_bonus(item["record"], query_metadata),
-            ),
-            reverse=True,
-        )[: max(k, self.dense_candidates)]
-        sparse_sorted = sorted(
-            candidates,
-            key=lambda item: (
-                item["sparse_score"],
-                item["section_score"],
-                item["metadata_score"],
-                _source_type_preference_bonus(item["record"], query_metadata),
-            ),
-            reverse=True,
-        )[: max(k, self.sparse_candidates)]
-        fused = _reciprocal_rank_fuse(dense_sorted, sparse_sorted)
+            subqueries=subqueries,
+            k=max(k, self.fused_candidates),
+            dense_candidates=self.dense_candidates,
+            sparse_candidates=self.sparse_candidates,
+            preferred_source_types=query_plan.get("preferred_source_types") or ["prose", "table"],
+        )
+        fused = _reciprocal_rank_fuse_lists(ranked_lists)
         fused_candidates = sorted(
             fused.values(),
             key=lambda item: (
                 item["hybrid_score"],
+                item.get("coverage_score", 0),
+                item.get("metric_score", 0),
+                item.get("numeric_score", 0),
                 item["section_score"],
                 item["metadata_score"],
-                _source_type_preference_bonus(item["record"], query_metadata),
+                item.get("source_type_bonus", 0),
             ),
             reverse=True,
         )[: max(k, self.fused_candidates)]
@@ -356,9 +433,12 @@ class FilingRetrievalPipeline:
                 key=lambda item: (
                     item.get("rerank_score", float("-inf")),
                     item["hybrid_score"],
+                    item.get("coverage_score", 0),
+                    item.get("metric_score", 0),
+                    item.get("numeric_score", 0),
                     item["section_score"],
                     item["metadata_score"],
-                    _source_type_preference_bonus(item["record"], query_metadata),
+                    item.get("source_type_bonus", 0),
                 ),
                 reverse=True,
             )
@@ -375,12 +455,16 @@ class FilingRetrievalPipeline:
                     "hybrid_score": item["hybrid_score"],
                     "metadata_score": item["metadata_score"],
                     "section_score": item["section_score"],
+                    "metric_score": item.get("metric_score"),
+                    "numeric_score": item.get("numeric_score"),
+                    "coverage_score": item.get("coverage_score"),
                     "rerank_score": item.get("rerank_score"),
                 }
             )
 
         return {
             "query": query,
+            "query_plan": query_plan,
             "results": scored_records[:k],
             "success": True,
         }
@@ -450,6 +534,32 @@ def build_chunk_records_from_prepared_filings(prepared_filings_data: Dict) -> Li
                     )
                 )
 
+        table_chunk_records = prepared_chunk_data.get("table_chunk_records")
+        if table_chunk_records:
+            for index, chunk_info in enumerate(table_chunk_records):
+                chunk_records.append(
+                    ChunkRecord(
+                        chunk_id=f"{filing_common['accession_number']}:table:{index}",
+                        text=chunk_info.get("text", ""),
+                        source_type="table",
+                        section_name=chunk_info.get("section_name"),
+                        period_end=chunk_info.get("period_end"),
+                        **filing_common,
+                    )
+                )
+        else:
+            for index, chunk_text in enumerate(prepared_chunk_data.get("table_chunks", [])):
+                chunk_records.append(
+                    ChunkRecord(
+                        chunk_id=f"{filing_common['accession_number']}:table:{index}",
+                        text=chunk_text,
+                        source_type="table",
+                        section_name=None,
+                        period_end=None,
+                        **filing_common,
+                    )
+                )
+
     return chunk_records
 
 
@@ -495,6 +605,34 @@ def parse_question_metadata(question: str) -> Dict[str, Optional[str]]:
         "quarter": quarter_match.group(1).upper() if quarter_match else None,
         "period_end": _normalize_date_string(period_end_match.group(0)) if period_end_match else None,
         "question_type": _infer_query_style(question),
+    }
+
+
+def build_query_plan(question: str) -> Dict[str, object]:
+    metadata = parse_question_metadata(question)
+    question_type = metadata.get("question_type") or "general"
+    metric_aliases = _build_metric_aliases(question, question_type)
+    preferred_sections = _build_preferred_sections(question, question_type)
+    preferred_source_types = QUESTION_TYPE_SOURCE_PREFERENCES.get(question_type, ["prose", "table"])
+    subqueries = _build_subqueries(question, metric_aliases, preferred_sections, question_type)
+
+    return {
+        **metadata,
+        "question": question,
+        "metric_aliases": metric_aliases,
+        "preferred_sections": preferred_sections,
+        "preferred_source_types": preferred_source_types,
+        "subqueries": subqueries,
+        "needs_numeric_support": question_type in {"fact", "profitability_margin", "cash_flow", "liquidity"},
+        "needs_explanatory_support": question_type in {
+            "narrative",
+            "revenue_driver",
+            "forward_revenue_driver",
+            "forward_pressure",
+            "management_actions",
+            "risk_material",
+            "profitability_margin",
+        },
     }
 
 
@@ -695,6 +833,18 @@ def _infer_query_style(question: str) -> str:
         return "risk_material"
     if any(phrase in lowered for phrase in ["actions has management taken", "stabilize performance", "address these risks"]):
         return "management_actions"
+    if any(phrase in lowered for phrase in ["profitability", "margin change", "margin changes", "gross margin", "operating margin"]):
+        return "profitability_margin"
+    if any(phrase in lowered for phrase in ["operational or financial pressures", "pressures could affect", "headwinds", "downward pressure"]):
+        return "forward_pressure"
+    if any(phrase in lowered for phrase in ["expected main drivers of revenue growth", "moving forward", "revenue growth moving forward"]):
+        return "forward_revenue_driver"
+    if any(phrase in lowered for phrase in ["drivers of revenue growth", "drivers of revenue", "drove revenue growth", "revenue growth or decline"]):
+        return "revenue_driver"
+    if any(phrase in lowered for phrase in ["liquidity", "capital resources"]):
+        return "liquidity"
+    if any(phrase in lowered for phrase in ["cash flow", "cash flows"]):
+        return "cash_flow"
     if any(
         phrase in lowered for phrase in [
             "what was",
@@ -711,13 +861,110 @@ def _infer_query_style(question: str) -> str:
     return "general"
 
 
-def _source_type_preference_bonus(record: ChunkRecord, query_metadata: Dict[str, Optional[str]]) -> int:
-    if query_metadata.get("question_type") == "narrative":
+def _build_metric_aliases(question: str, question_type: str) -> List[str]:
+    aliases = list(QUESTION_TYPE_METRIC_ALIASES.get(question_type, []))
+    lowered = question.lower()
+
+    if "revenue" in lowered or "sales" in lowered:
+        aliases.extend(["revenue", "net sales", "sales"])
+    if "margin" in lowered:
+        aliases.extend(["margin", "gross margin", "operating margin"])
+    if "profit" in lowered:
+        aliases.extend(["profitability", "operating income", "net income"])
+    if "risk" in lowered:
+        aliases.extend(["risk", "regulatory", "legal"])
+    if "cash" in lowered:
+        aliases.extend(["cash", "cash flow", "cash flows"])
+
+    return _unique_preserving_order(aliases)
+
+
+def _build_preferred_sections(question: str, question_type: str) -> List[str]:
+    sections = list(QUESTION_TYPE_SECTION_HINTS.get(question_type, []))
+    lowered = question.lower()
+    if "margin" in lowered:
+        sections.append("gross margin")
+    if "revenue" in lowered or "sales" in lowered:
+        sections.extend(["net sales", "results of operations"])
+    if "risk" in lowered:
+        sections.extend(["risk factors", "legal proceedings"])
+    return _unique_preserving_order(sections)
+
+
+def _build_subqueries(
+    question: str,
+    metric_aliases: List[str],
+    preferred_sections: List[str],
+    question_type: str,
+) -> List[str]:
+    clauses = _split_question_into_clauses(question)
+    focus_terms = [token for token in _tokenize_for_bm25(question) if token not in QUERY_STOPWORDS]
+    subqueries = [question.strip()]
+    subqueries.extend(clause for clause in clauses if clause and clause != question.strip())
+
+    if metric_aliases:
+        subqueries.append(" ".join(metric_aliases[:5]))
+    if preferred_sections and metric_aliases:
+        subqueries.append(" ".join(metric_aliases[:3] + preferred_sections[:2]))
+    elif preferred_sections:
+        subqueries.append(" ".join(preferred_sections[:2]))
+
+    if question_type == "profitability_margin":
+        subqueries.extend(
+            [
+                "gross margin trend",
+                "margin drivers product mix costs",
+            ]
+        )
+    elif question_type in {"revenue_driver", "forward_revenue_driver"}:
+        subqueries.extend(
+            [
+                "revenue growth drivers",
+                "net sales by segment product mix",
+            ]
+        )
+    elif question_type == "forward_pressure":
+        subqueries.extend(
+            [
+                "operating pressures costs margins",
+                "forward looking risks expenses tariffs",
+            ]
+        )
+    elif question_type == "management_actions":
+        subqueries.extend(
+            [
+                "management actions appealed plan hedging liquidity",
+                "steps taken to address risks",
+            ]
+        )
+
+    if focus_terms:
+        subqueries.append(" ".join(focus_terms[:8]))
+
+    return _unique_preserving_order(query for query in subqueries if query)
+
+
+def _split_question_into_clauses(question: str) -> List[str]:
+    stripped = question.strip().rstrip("?")
+    clauses = [
+        part.strip()
+        for part in re.split(r"\b(?:and|while|versus|vs\.?)\b|[,;]", stripped, flags=re.IGNORECASE)
+        if part.strip()
+    ]
+    return clauses
+
+
+def _source_type_preference_bonus(record: ChunkRecord, query_plan: Dict[str, object]) -> int:
+    preferred_source_types = query_plan.get("preferred_source_types") or []
+    if record.source_type in preferred_source_types:
+        preferred_index = preferred_source_types.index(record.source_type)
+        return max(0, 3 - preferred_index)
+    if query_plan.get("question_type") == "narrative":
         return 2 if record.source_type == "prose" else 0
     return 0
 
 
-def _section_match_score(record: ChunkRecord, query_metadata: Dict[str, Optional[str]]) -> int:
+def _section_match_score(record: ChunkRecord, query_metadata: Dict[str, object]) -> int:
     section = (record.section_name or "").lower()
     if not section:
         return 0
@@ -733,7 +980,120 @@ def _section_match_score(record: ChunkRecord, query_metadata: Dict[str, Optional
             return 2
         if "management's discussion and analysis" in section:
             return 1
+    preferred_sections = query_metadata.get("preferred_sections") or []
+    for preferred_section in preferred_sections:
+        if preferred_section.lower() in section:
+            return 2
     return 0
+
+
+def _metric_alias_match_score(record: ChunkRecord, query_plan: Dict[str, object]) -> int:
+    aliases = query_plan.get("metric_aliases") or []
+    if not aliases:
+        return 0
+
+    lowered = record.text.lower()
+    matches = sum(1 for alias in aliases if alias.lower() in lowered)
+    return min(matches, 4)
+
+
+def _numeric_evidence_score(record: ChunkRecord, query_plan: Dict[str, object]) -> int:
+    if not query_plan.get("needs_numeric_support"):
+        return 0
+
+    score = 0
+    if record.source_type == "table":
+        score += 2
+    if re.search(r"\d", record.text):
+        score += 1
+    if "%" in record.text or "$" in record.text:
+        score += 1
+    return score
+
+
+def _query_coverage_score(dense_scores: List[float], sparse_scores: List[float]) -> int:
+    coverage = 0
+    for dense_score, sparse_score in zip(dense_scores, sparse_scores):
+        if dense_score > 0 or sparse_score > 0:
+            coverage += 1
+    return coverage
+
+
+def _build_ranked_candidate_lists(
+    candidates: List[Dict],
+    subqueries: List[str],
+    k: int,
+    dense_candidates: int,
+    sparse_candidates: int,
+    preferred_source_types: List[str],
+) -> List[Tuple[str, List[Dict]]]:
+    ranked_lists: List[Tuple[str, List[Dict]]] = []
+    source_types = _ordered_source_types(candidates, preferred_source_types)
+
+    for source_type in source_types:
+        source_candidates = [candidate for candidate in candidates if candidate["record"].source_type == source_type]
+        if not source_candidates:
+            continue
+
+        for subquery_index, _subquery in enumerate(subqueries):
+            dense_sorted = sorted(
+                source_candidates,
+                key=lambda item: (
+                    item["dense_scores"][subquery_index],
+                    item["metric_score"],
+                    item["numeric_score"],
+                    item["section_score"],
+                    item["metadata_score"],
+                    item["source_type_bonus"],
+                ),
+                reverse=True,
+            )[: max(k, dense_candidates)]
+            sparse_sorted = sorted(
+                source_candidates,
+                key=lambda item: (
+                    item["sparse_scores"][subquery_index],
+                    item["metric_score"],
+                    item["numeric_score"],
+                    item["section_score"],
+                    item["metadata_score"],
+                    item["source_type_bonus"],
+                ),
+                reverse=True,
+            )[: max(k, sparse_candidates)]
+            ranked_lists.append((f"{source_type}:dense:{subquery_index}", dense_sorted))
+            ranked_lists.append((f"{source_type}:sparse:{subquery_index}", sparse_sorted))
+
+    return ranked_lists
+
+
+def _ordered_source_types(candidates: List[Dict], preferred_source_types: List[str]) -> List[str]:
+    seen = set()
+    ordered: List[str] = []
+
+    for source_type in preferred_source_types:
+        if source_type not in seen:
+            ordered.append(source_type)
+            seen.add(source_type)
+
+    for candidate in candidates:
+        source_type = candidate["record"].source_type
+        if source_type not in seen:
+            ordered.append(source_type)
+            seen.add(source_type)
+
+    return ordered
+
+
+def _unique_preserving_order(values: Sequence[str]) -> List[str]:
+    seen = set()
+    ordered: List[str] = []
+    for value in values:
+        normalized = value.strip()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        ordered.append(normalized)
+    return ordered
 
 
 def _tokenize_for_bm25(text: str) -> List[str]:
@@ -786,8 +1146,18 @@ def _reciprocal_rank_fuse(
     sparse_ranked: List[Dict],
     rrf_k: int = 60,
 ) -> Dict[str, Dict]:
+    return _reciprocal_rank_fuse_lists(
+        [("dense", dense_ranked), ("sparse", sparse_ranked)],
+        rrf_k=rrf_k,
+    )
+
+
+def _reciprocal_rank_fuse_lists(
+    ranked_lists: List[Tuple[str, List[Dict]]],
+    rrf_k: int = 60,
+) -> Dict[str, Dict]:
     fused: Dict[str, Dict] = {}
-    for ranked_list, label in ((dense_ranked, "dense"), (sparse_ranked, "sparse")):
+    for label, ranked_list in ranked_lists:
         for rank, item in enumerate(ranked_list, start=1):
             chunk_id = item["record"].chunk_id
             fused_item = fused.setdefault(

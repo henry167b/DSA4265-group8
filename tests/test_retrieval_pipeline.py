@@ -9,6 +9,7 @@ from backend.agents.retrieval_pipeline import (
     JsonEmbeddingCache,
     OpenAIEmbeddingProvider,
     _batch_texts_for_embedding,
+    build_query_plan,
     build_chunk_records_from_prepared_filings,
     build_generation_context,
     expand_oversized_chunk_records,
@@ -225,6 +226,18 @@ def test_parse_question_metadata_classifies_risk_and_management_action_questions
     assert actions["question_type"] == "management_actions"
 
 
+def test_build_query_plan_decomposes_profitability_question():
+    plan = build_query_plan(
+        "How is the company’s profitability trending, and what is driving margin changes?"
+    )
+
+    assert plan["question_type"] == "profitability_margin"
+    assert "gross margin" in plan["metric_aliases"]
+    assert plan["preferred_source_types"] == ["table", "prose"]
+    assert any("gross margin trend" in subquery for subquery in plan["subqueries"])
+    assert any("margin drivers product mix costs" in subquery for subquery in plan["subqueries"])
+
+
 def test_expand_oversized_chunk_records_splits_large_text_and_preserves_metadata():
     long_text = ("Revenue increased strongly. " * 500).strip()
     records = [
@@ -367,6 +380,96 @@ def test_management_action_questions_prefer_legal_proceedings_sections_when_scor
     )
 
     assert result["results"][0]["section_name"] == "ITEM 3. LEGAL PROCEEDINGS"
+
+
+def test_profitability_questions_can_surface_table_chunks_via_source_aware_fusion():
+    chunk_records = build_chunk_records_from_prepared_filings(
+        {
+            "ticker": "AAPL",
+            "filings": [
+                {
+                    "filing_date": "2026-01-30",
+                    "accession_number": "0000320193-26-000001",
+                    "quarter": "2026 Q1",
+                    "form_type": "10-Q",
+                    "prepared_chunk_data": {
+                        "prose_chunk_records": [
+                            {
+                                "text": "Margin changes were driven by favorable product mix and lower commodity costs.",
+                                "section_name": "Gross Margin",
+                                "period_end": "Dec 27, 2025",
+                            }
+                        ],
+                        "table_chunk_records": [
+                            {
+                                "text": "[Table] Gross Margin\nSection: Gross Margin\nUnits: In percent\nColumns: Metric | 2025 | 2024\nRows: 1-1\nGross margin: 2025=48.2%; 2024=46.9%",
+                                "section_name": "Gross Margin",
+                                "period_end": "Dec 27, 2025",
+                            }
+                        ],
+                    },
+                }
+            ],
+        }
+    )
+
+    pipeline = FilingRetrievalPipeline(FakeEmbeddingProvider())
+    pipeline.index_chunks(chunk_records)
+    result = pipeline.search(
+        "How is the company’s profitability trending, and what is driving margin changes?",
+        k=2,
+    )
+
+    assert len(result["results"]) == 2
+    assert {chunk["source_type"] for chunk in result["results"]} == {"prose", "table"}
+
+
+def test_revenue_driver_questions_use_multi_query_retrieval_to_cover_distinct_evidence():
+    chunk_records = build_chunk_records_from_prepared_filings(
+        {
+            "ticker": "AAPL",
+            "filings": [
+                {
+                    "filing_date": "2026-01-30",
+                    "accession_number": "0000320193-26-000001",
+                    "quarter": "2026 Q1",
+                    "form_type": "10-Q",
+                    "prepared_chunk_data": {
+                        "prose_chunk_records": [
+                            {
+                                "text": "Revenue increased because of stronger iPhone demand and Services growth.",
+                                "section_name": "Results of Operations",
+                                "period_end": "Dec 27, 2025",
+                            },
+                            {
+                                "text": "Net sales by segment showed continued Services momentum.",
+                                "section_name": "Net Sales",
+                                "period_end": "Dec 27, 2025",
+                            },
+                        ],
+                        "table_chunk_records": [
+                            {
+                                "text": "[Table] Net Sales\nSection: Net Sales\nColumns: Segment | 2025 | 2024\nRows: 1-1\nServices: 2025=26,340; 2024=23,117",
+                                "section_name": "Net Sales",
+                                "period_end": "Dec 27, 2025",
+                            }
+                        ],
+                    },
+                }
+            ],
+        }
+    )
+
+    pipeline = FilingRetrievalPipeline(FakeEmbeddingProvider())
+    pipeline.index_chunks(chunk_records)
+    result = pipeline.search(
+        "What were the main drivers of revenue growth or decline this quarter?",
+        k=3,
+    )
+
+    assert result["query_plan"]["question_type"] == "revenue_driver"
+    assert any("revenue growth drivers" in subquery for subquery in result["query_plan"]["subqueries"])
+    assert any(chunk["source_type"] == "table" for chunk in result["results"])
 
 
 def test_batch_texts_for_embedding_splits_large_requests():
