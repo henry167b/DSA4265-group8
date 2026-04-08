@@ -8,15 +8,12 @@ from .retrieval_pipeline import (
     order_retrieved_chunks_for_generation,
     resolve_openai_api_key,
 )
-from .financial_data_agent import YahooFinanceAgent
-
 try:
-    from .report_draft_agent import ReportDraftAgent
+    from .financial_data_agent import YahooFinanceAgent
 except ImportError:
-    ReportDraftAgent = None
+    YahooFinanceAgent = None
 
 __all__ = [
-    'YahooFinanceAgent',
     'prepare_filing_html_for_chunking',
     'FilingRetrievalPipeline',
     'OpenAIChatGenerationProvider',
@@ -27,5 +24,5 @@ __all__ = [
     'resolve_openai_api_key',
 ]
 
-if ReportDraftAgent is not None:
-    __all__.append('ReportDraftAgent')
+if YahooFinanceAgent is not None:
+    __all__.append('YahooFinanceAgent')

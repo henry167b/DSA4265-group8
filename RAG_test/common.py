@@ -4,7 +4,7 @@ import json
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -16,6 +16,10 @@ BENCHMARK_DATASET_PATH = REPO_ROOT / "RAG_test" / "benchmark_dataset.json"
 
 COMPANIES: List[Dict[str, str]] = [
     {"company_name": "Apple", "ticker": "AAPL"},
+    {"company_name": "Alphabet", "ticker": "GOOG"},
+    {"company_name": "Meta Platforms", "ticker": "META"},
+    {"company_name": "NVIDIA", "ticker": "NVDA"},
+    {"company_name": "Tesla", "ticker": "TSLA"},
 ]
 
 
@@ -39,6 +43,25 @@ def ensure_data_dirs() -> None:
     CHUNKED_FILINGS_DIR.mkdir(parents=True, exist_ok=True)
     EMBEDDING_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def resolve_companies(selected_tickers: Optional[List[str]] = None) -> List[Dict[str, str]]:
+    if not selected_tickers:
+        return list(COMPANIES)
+
+    normalized = [ticker.strip().upper() for ticker in selected_tickers if ticker.strip()]
+    if not normalized:
+        return list(COMPANIES)
+
+    companies_by_ticker = {company["ticker"].upper(): company for company in COMPANIES}
+    unknown = [ticker for ticker in normalized if ticker not in companies_by_ticker]
+    if unknown:
+        supported = ", ".join(sorted(companies_by_ticker))
+        raise ValueError(
+            f"Unsupported ticker(s): {', '.join(unknown)}. Supported benchmark tickers: {supported}."
+        )
+
+    return [companies_by_ticker[ticker] for ticker in normalized]
 
 
 def raw_filings_path(ticker: str) -> Path:
