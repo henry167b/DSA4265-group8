@@ -1,0 +1,50 @@
+[
+  {
+    "company_name": "Apple",
+    "ticker": "AAPL",
+    "filing_date": "2026-01-30",
+    "question": "What are the most material risks explicitly disclosed by management this quarter?",
+    "oracle_answer": "Management said there were \"no material changes\" to risk factors versus the 2025 10-K. The biggest quarter-specific disclosed risks were legal/regulatory: a €500 million EU DMA fine and potential further fines of up to 10% of annual worldwide net sales.",
+    "question_type": "risk_material"
+  },
+  {
+    "company_name": "Apple",
+    "ticker": "AAPL",
+    "filing_date": "2026-01-30",
+    "question": "What operational or financial pressures could affect performance in upcoming quarters?",
+    "oracle_answer": "Key pressures are tariff costs, higher operating expenses, and margin pressure. R&D rose 32% to $10.9B; total operating expenses rose 19% to $18.4B. Management also said gross margins may face \"volatility and downward pressure.\"",
+    "question_type": "forward_pressure"
+  },
+  {
+    "company_name": "Apple",
+    "ticker": "AAPL",
+    "filing_date": "2026-01-30",
+    "question": "What actions has management taken to address these risks or stabilize performance?",
+    "oracle_answer": "Apple said it has appealed the EU decision, is making changes to its DMA compliance plan, uses FX hedging for up to 12 months on forecasted exposures, and believes its liquidity is sufficient for the next 12 months and beyond.",
+    "question_type": "management_actions"
+  },
+  {
+    "company_name": "Apple",
+    "ticker": "AAPL",
+    "filing_date": "2026-01-30",
+    "question": "What were the main drivers of revenue growth or decline this quarter?",
+    "oracle_answer": "Total net sales rose 16% to $143.8B. Textually, growth was driven by iPhone (higher sales of Pro models) and Services (higher sales from advertising, the App Store, and cloud services). iPad also grew, while Mac declined due to weaker laptop and desktop sales, and Wearables, Home and Accessories fell due to lower Wearables sales.",
+    "question_type": "revenue_driver"
+  },
+  {
+    "company_name": "Apple",
+    "ticker": "AAPL",
+    "filing_date": "2026-01-30",
+    "question": "How is the company’s profitability trending, and what is driving margin changes?",
+    "oracle_answer": "Profitability improved: total gross margin rose to 48.2% from 46.9%. Product gross margin increased to 40.7% from 39.3% due to a different product mix, partly offset by tariff costs. Services gross margin increased to 76.5% from 75.0% due to higher Services sales and a different services mix, though higher costs partly offset this.",
+    "question_type": "profitability_margin"
+  },
+  {
+    "company_name": "Apple",
+    "ticker": "AAPL",
+    "filing_date": "2026-01-30",
+    "question": "What are the expected main drivers of revenue growth moving forward?",
+    "oracle_answer": "No formal textual outlook was given, but the implied drivers are continued iPhone strength, especially premium models, and Services growth in advertising, App Store, and cloud services.",
+    "question_type": "forward_revenue_driver"
+  }
+]
