@@ -6,9 +6,15 @@ sys.modules.setdefault("pandas", SimpleNamespace(MultiIndex=type("MultiIndex", (
 
 from backend.agents.retrieval_pipeline import (
     FilingRetrievalPipeline,
+    JsonEmbeddingCache,
+    OpenAIEmbeddingProvider,
+    _batch_texts_for_embedding,
+    build_query_plan,
     build_chunk_records_from_prepared_filings,
     build_generation_context,
+    expand_oversized_chunk_records,
     order_retrieved_chunks_for_generation,
+    parse_question_metadata,
     resolve_openai_api_key,
 )
 
@@ -24,8 +30,7 @@ class FakeEmbeddingProvider:
         lowered = text.lower()
         revenue = 1.0 if "revenue" in lowered else 0.0
         risk = 1.0 if "risk" in lowered else 0.0
-        table = 1.0 if lowered.startswith("[") else 0.0
-        return [revenue, risk, table]
+        return [revenue, risk, 0.0]
 
 
 class FakeGenerationProvider:
@@ -33,18 +38,33 @@ class FakeGenerationProvider:
         return f"Answer to '{question}' using {len(retrieved_chunks)} chunks"
 
 
-def test_build_chunk_records_from_prepared_filings_preserves_metadata():
+class CapturingEmbeddingProvider(FakeEmbeddingProvider):
+    def __init__(self):
+        self.seen_texts = []
+
+    def embed_texts(self, texts):
+        self.seen_texts = list(texts)
+        return super().embed_texts(texts)
+
+
+def test_build_chunk_records_from_prepared_filings_preserves_minimal_metadata():
     prepared = {
-        "ticker": "NVDA",
+        "ticker": "AAPL",
         "filings": [
             {
-                "filing_date": "2024-08-28",
-                "accession_number": "0001045810-24-000123",
-                "quarter": "2024 Q3",
+                "filing_date": "2026-01-30",
+                "accession_number": "0000320193-26-000001",
+                "quarter": "2026 Q1",
                 "form_type": "10-Q",
                 "prepared_chunk_data": {
-                    "prose_chunks": ["Revenue increased strongly this quarter."],
-                    "table_chunks": ["[Quarterly Revenue]\nData Center (2024): $47,500"],
+                    "prose_chunk_records": [
+                        {
+                            "text": "Revenue grew due to iPhone and Services strength.",
+                            "section_name": "ITEM 2. MANAGEMENT'S DISCUSSION AND ANALYSIS",
+                            "period_end": "Dec 27, 2025",
+                        }
+                    ],
+                    "table_chunk_records": [],
                 },
             }
         ],
@@ -52,28 +72,28 @@ def test_build_chunk_records_from_prepared_filings_preserves_metadata():
 
     chunk_records = build_chunk_records_from_prepared_filings(prepared)
 
-    assert len(chunk_records) == 2
+    assert len(chunk_records) == 1
     assert chunk_records[0].source_type == "prose"
-    assert chunk_records[1].source_type == "table"
-    assert chunk_records[1].table_title == "Quarterly Revenue"
-    assert chunk_records[0].ticker == "NVDA"
+    assert chunk_records[0].ticker == "AAPL"
+    assert chunk_records[0].section_name == "ITEM 2. MANAGEMENT'S DISCUSSION AND ANALYSIS"
+    assert chunk_records[0].period_end == "Dec 27, 2025"
 
 
-def test_filing_retrieval_pipeline_returns_highest_scoring_chunks():
+def test_filing_retrieval_pipeline_returns_highest_scoring_prose_chunks():
     prepared = {
-        "ticker": "NVDA",
+        "ticker": "AAPL",
         "filings": [
             {
-                "filing_date": "2024-08-28",
-                "accession_number": "0001045810-24-000123",
-                "quarter": "2024 Q3",
+                "filing_date": "2026-01-30",
+                "accession_number": "0000320193-26-000001",
+                "quarter": "2026 Q1",
                 "form_type": "10-Q",
                 "prepared_chunk_data": {
                     "prose_chunks": [
-                        "Revenue increased strongly this quarter.",
-                        "Risk factors remained broadly similar.",
+                        "Revenue increased because of iPhone and Services demand.",
+                        "Risk factors remained broadly similar to prior filings.",
                     ],
-                    "table_chunks": ["[Quarterly Revenue]\nData Center (2024): $47,500"],
+                    "table_chunks": [],
                 },
             }
         ],
@@ -82,92 +102,81 @@ def test_filing_retrieval_pipeline_returns_highest_scoring_chunks():
     chunk_records = build_chunk_records_from_prepared_filings(prepared)
     pipeline = FilingRetrievalPipeline(FakeEmbeddingProvider())
     index_result = pipeline.index_chunks(chunk_records)
-    search_result = pipeline.search("What was revenue?", k=2)
+    search_result = pipeline.search("What drove revenue growth?", k=1)
 
     assert index_result["success"] is True
-    assert index_result["indexed_chunks"] == 3
+    assert index_result["indexed_chunks"] == 2
     assert search_result["success"] is True
-    assert len(search_result["results"]) == 2
     assert "Revenue" in search_result["results"][0]["text"]
 
 
 def test_resolve_openai_api_key_prefers_explicit_value(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "env-key")
-
     assert resolve_openai_api_key("explicit-key") == "explicit-key"
 
 
 def test_resolve_openai_api_key_reads_environment(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "env-key")
-
     assert resolve_openai_api_key() == "env-key"
 
 
-def test_build_generation_context_includes_metadata():
+def test_build_generation_context_includes_minimal_metadata():
     context = build_generation_context(
         [
             {
-                "ticker": "NVDA",
-                "quarter": "2024 Q3",
-                "filing_date": "2024-08-28",
-                "source_type": "table",
-                "text": "[Quarterly Revenue]\nData Center (2024): $47,500",
+                "ticker": "AAPL",
+                "quarter": "2026 Q1",
+                "filing_date": "2026-01-30",
+                "source_type": "prose",
+                "section_name": "ITEM 2. MANAGEMENT'S DISCUSSION AND ANALYSIS",
+                "period_end": "Dec 27, 2025",
+                "text": "Revenue increased because of iPhone and Services demand.",
             }
         ]
     )
 
-    assert "Ticker: NVDA" in context
-    assert "Quarter: 2024 Q3" in context
-    assert "Data Center (2024): $47,500" in context
-    assert "intentionally ordered chronologically" in context
+    assert "Ticker: AAPL" in context
+    assert "Quarter: 2026 Q1" in context
+    assert "Section: ITEM 2. MANAGEMENT'S DISCUSSION AND ANALYSIS" in context
+    assert "Period End: Dec 27, 2025" in context
+    assert "Revenue increased because of iPhone and Services demand." in context
 
 
 def test_order_retrieved_chunks_for_generation_sorts_oldest_to_newest():
     ordered = order_retrieved_chunks_for_generation(
         [
             {
-                "chunk_id": "latest-table",
-                "filing_date": "2024-08-28",
-                "accession_number": "b",
-                "source_type": "table",
-                "text": "Latest table",
-            },
-            {
-                "chunk_id": "oldest-prose",
-                "filing_date": "2024-02-28",
-                "accession_number": "a",
-                "source_type": "prose",
-                "text": "Oldest prose",
-            },
-            {
-                "chunk_id": "latest-prose",
-                "filing_date": "2024-08-28",
+                "chunk_id": "latest",
+                "filing_date": "2026-01-30",
                 "accession_number": "b",
                 "source_type": "prose",
                 "text": "Latest prose",
             },
+            {
+                "chunk_id": "oldest",
+                "filing_date": "2025-10-31",
+                "accession_number": "a",
+                "source_type": "prose",
+                "text": "Oldest prose",
+            },
         ]
     )
 
-    assert [chunk["chunk_id"] for chunk in ordered] == [
-        "oldest-prose",
-        "latest-prose",
-        "latest-table",
-    ]
+    assert [chunk["chunk_id"] for chunk in ordered] == ["oldest", "latest"]
 
 
 def test_filing_retrieval_pipeline_can_generate_answer_from_search_results():
     prepared = {
-        "ticker": "NVDA",
+        "ticker": "AAPL",
         "filings": [
             {
-                "filing_date": "2024-08-28",
-                "accession_number": "0001045810-24-000123",
-                "quarter": "2024 Q3",
+                "filing_date": "2026-01-30",
+                "accession_number": "0000320193-26-000001",
+                "quarter": "2026 Q1",
                 "form_type": "10-Q",
                 "prepared_chunk_data": {
-                    "prose_chunks": ["Revenue increased strongly this quarter."],
-                    "table_chunks": ["[Quarterly Revenue]\nData Center (2024): $47,500"],
+                    "prose_chunks": ["Revenue increased because of iPhone and Services demand."],
+                    "table_chunks": [],
                 },
             }
         ],
@@ -178,63 +187,328 @@ def test_filing_retrieval_pipeline_can_generate_answer_from_search_results():
     pipeline.index_chunks(chunk_records)
 
     result = pipeline.answer_question(
-        question="What was revenue?",
+        question="What drove revenue growth?",
         generation_provider=FakeGenerationProvider(),
-        k=2,
+        k=1,
     )
 
     assert result["success"] is True
-    assert "Answer to 'What was revenue?'" in result["answer"]
-    assert len(result["sources"]) == 2
+    assert "Answer to 'What drove revenue growth?'" in result["answer"]
+    assert len(result["sources"]) == 1
 
 
-def test_answer_question_reorders_selected_chunks_for_generation():
+def test_parse_question_metadata_extracts_filterable_fields():
+    metadata = parse_question_metadata(
+        "What were the main drivers of revenue growth in 2026 Q1 filed on 2026-01-30?"
+    )
+
+    assert metadata["filing_date"] == "2026-01-30"
+    assert metadata["quarter"] == "2026 Q1"
+
+
+def test_parse_question_metadata_extracts_natural_language_period_end():
+    metadata = parse_question_metadata(
+        "How is profitability trending in the quarter ended December 27, 2025?"
+    )
+
+    assert metadata["period_end"] == "2025-12-27"
+
+
+def test_parse_question_metadata_classifies_risk_and_management_action_questions():
+    risk = parse_question_metadata(
+        "What are the most material risks explicitly disclosed by management this quarter?"
+    )
+    actions = parse_question_metadata(
+        "What actions has management taken to address these risks or stabilize performance?"
+    )
+
+    assert risk["question_type"] == "risk_material"
+    assert actions["question_type"] == "management_actions"
+
+
+def test_build_query_plan_decomposes_profitability_question():
+    plan = build_query_plan(
+        "How is the company’s profitability trending, and what is driving margin changes?"
+    )
+
+    assert plan["question_type"] == "profitability_margin"
+    assert "gross margin" in plan["metric_aliases"]
+    assert plan["preferred_source_types"] == ["table", "prose"]
+    assert any("gross margin trend" in subquery for subquery in plan["subqueries"])
+    assert any("margin drivers product mix costs" in subquery for subquery in plan["subqueries"])
+
+
+def test_expand_oversized_chunk_records_splits_large_text_and_preserves_metadata():
+    long_text = ("Revenue increased strongly. " * 500).strip()
+    records = [
+        build_chunk_records_from_prepared_filings(
+            {
+                "ticker": "AAPL",
+                "filings": [
+                    {
+                        "filing_date": "2026-01-30",
+                        "accession_number": "0000320193-26-000001",
+                        "quarter": "2026 Q1",
+                        "form_type": "10-Q",
+                        "prepared_chunk_data": {
+                            "prose_chunk_records": [
+                                {
+                                    "text": long_text,
+                                    "section_name": "ITEM 2",
+                                    "period_end": "Dec 27, 2025",
+                                }
+                            ]
+                        },
+                    }
+                ],
+            }
+        )[0]
+    ]
+
+    expanded = expand_oversized_chunk_records(records, max_chars=1000, overlap_chars=100)
+
+    assert len(expanded) > 1
+    assert all(record.section_name == "ITEM 2" for record in expanded)
+    assert expanded[0].chunk_id.startswith("0000320193-26-000001:prose:0#part")
+
+
+def test_index_chunks_splits_oversized_records_before_embedding():
+    long_text = ("Revenue increased strongly. " * 500).strip()
     prepared = {
-        "ticker": "NVDA",
+        "ticker": "AAPL",
         "filings": [
             {
-                "filing_date": "2024-08-28",
-                "accession_number": "0001045810-24-000123",
-                "quarter": "2024 Q3",
+                "filing_date": "2026-01-30",
+                "accession_number": "0000320193-26-000001",
+                "quarter": "2026 Q1",
                 "form_type": "10-Q",
                 "prepared_chunk_data": {
-                    "prose_chunks": ["Revenue increased strongly this quarter."],
-                    "table_chunks": [],
+                    "prose_chunk_records": [
+                        {
+                            "text": long_text,
+                            "section_name": "ITEM 2",
+                            "period_end": "Dec 27, 2025",
+                        }
+                    ]
                 },
-            },
-            {
-                "filing_date": "2024-05-29",
-                "accession_number": "0001045810-24-000122",
-                "quarter": "2024 Q2",
-                "form_type": "10-Q",
-                "prepared_chunk_data": {
-                    "prose_chunks": ["Revenue was lower in the prior quarter."],
-                    "table_chunks": [],
-                },
-            },
+            }
         ],
     }
 
-    captured = {}
+    embedding_provider = CapturingEmbeddingProvider()
+    pipeline = FilingRetrievalPipeline(embedding_provider)
+    result = pipeline.index_chunks(build_chunk_records_from_prepared_filings(prepared))
 
-    class CapturingGenerationProvider:
-        def generate_answer(self, question, retrieved_chunks):
-            captured["retrieved_chunks"] = retrieved_chunks
-            return "Chronological answer"
+    assert result["success"] is True
+    assert len(pipeline.chunk_records) > 1
+    assert all(len(text) <= 6000 for text in embedding_provider.seen_texts)
 
-    chunk_records = build_chunk_records_from_prepared_filings(prepared)
+
+def test_risk_questions_prefer_risk_factor_sections_when_scores_are_otherwise_equal():
+    chunk_records = build_chunk_records_from_prepared_filings(
+        {
+            "ticker": "AAPL",
+            "filings": [
+                {
+                    "filing_date": "2026-01-30",
+                    "accession_number": "0000320193-26-000001",
+                    "quarter": "2026 Q1",
+                    "form_type": "10-Q",
+                    "prepared_chunk_data": {
+                        "prose_chunk_records": [
+                            {
+                                "text": "Management discussed legal exposure.",
+                                "section_name": "ITEM 1A. RISK FACTORS",
+                                "period_end": "Dec 27, 2025",
+                            },
+                            {
+                                "text": "Management discussed legal exposure.",
+                                "section_name": "ITEM 2. MANAGEMENT'S DISCUSSION AND ANALYSIS",
+                                "period_end": "Dec 27, 2025",
+                            },
+                        ]
+                    },
+                }
+            ],
+        }
+    )
+
     pipeline = FilingRetrievalPipeline(FakeEmbeddingProvider())
     pipeline.index_chunks(chunk_records)
+    result = pipeline.search(
+        "What are the most material risks explicitly disclosed by management this quarter?",
+        k=1,
+    )
 
-    result = pipeline.answer_question(
-        question="What was revenue?",
-        generation_provider=CapturingGenerationProvider(),
+    assert result["results"][0]["section_name"] == "ITEM 1A. RISK FACTORS"
+
+
+def test_management_action_questions_prefer_legal_proceedings_sections_when_scores_are_otherwise_equal():
+    chunk_records = build_chunk_records_from_prepared_filings(
+        {
+            "ticker": "AAPL",
+            "filings": [
+                {
+                    "filing_date": "2026-01-30",
+                    "accession_number": "0000320193-26-000001",
+                    "quarter": "2026 Q1",
+                    "form_type": "10-Q",
+                    "prepared_chunk_data": {
+                        "prose_chunk_records": [
+                            {
+                                "text": "Apple appealed the decision and changed its compliance plan.",
+                                "section_name": "ITEM 3. LEGAL PROCEEDINGS",
+                                "period_end": "Dec 27, 2025",
+                            },
+                            {
+                                "text": "Apple appealed the decision and changed its compliance plan.",
+                                "section_name": "ITEM 2. MANAGEMENT'S DISCUSSION AND ANALYSIS",
+                                "period_end": "Dec 27, 2025",
+                            },
+                        ]
+                    },
+                }
+            ],
+        }
+    )
+
+    pipeline = FilingRetrievalPipeline(FakeEmbeddingProvider())
+    pipeline.index_chunks(chunk_records)
+    result = pipeline.search(
+        "What actions has management taken to address these risks or stabilize performance?",
+        k=1,
+    )
+
+    assert result["results"][0]["section_name"] == "ITEM 3. LEGAL PROCEEDINGS"
+
+
+def test_profitability_questions_can_surface_table_chunks_via_source_aware_fusion():
+    chunk_records = build_chunk_records_from_prepared_filings(
+        {
+            "ticker": "AAPL",
+            "filings": [
+                {
+                    "filing_date": "2026-01-30",
+                    "accession_number": "0000320193-26-000001",
+                    "quarter": "2026 Q1",
+                    "form_type": "10-Q",
+                    "prepared_chunk_data": {
+                        "prose_chunk_records": [
+                            {
+                                "text": "Margin changes were driven by favorable product mix and lower commodity costs.",
+                                "section_name": "Gross Margin",
+                                "period_end": "Dec 27, 2025",
+                            }
+                        ],
+                        "table_chunk_records": [
+                            {
+                                "text": "[Table] Gross Margin\nSection: Gross Margin\nUnits: In percent\nColumns: Metric | 2025 | 2024\nRows: 1-1\nGross margin: 2025=48.2%; 2024=46.9%",
+                                "section_name": "Gross Margin",
+                                "period_end": "Dec 27, 2025",
+                            }
+                        ],
+                    },
+                }
+            ],
+        }
+    )
+
+    pipeline = FilingRetrievalPipeline(FakeEmbeddingProvider())
+    pipeline.index_chunks(chunk_records)
+    result = pipeline.search(
+        "How is the company’s profitability trending, and what is driving margin changes?",
         k=2,
     )
 
-    assert result["success"] is True
-    assert result["answer"] == "Chronological answer"
-    assert [chunk["filing_date"] for chunk in captured["retrieved_chunks"]] == [
-        "2024-05-29",
-        "2024-08-28",
+    assert len(result["results"]) == 2
+    assert {chunk["source_type"] for chunk in result["results"]} == {"prose", "table"}
+
+
+def test_revenue_driver_questions_use_multi_query_retrieval_to_cover_distinct_evidence():
+    chunk_records = build_chunk_records_from_prepared_filings(
+        {
+            "ticker": "AAPL",
+            "filings": [
+                {
+                    "filing_date": "2026-01-30",
+                    "accession_number": "0000320193-26-000001",
+                    "quarter": "2026 Q1",
+                    "form_type": "10-Q",
+                    "prepared_chunk_data": {
+                        "prose_chunk_records": [
+                            {
+                                "text": "Revenue increased because of stronger iPhone demand and Services growth.",
+                                "section_name": "Results of Operations",
+                                "period_end": "Dec 27, 2025",
+                            },
+                            {
+                                "text": "Net sales by segment showed continued Services momentum.",
+                                "section_name": "Net Sales",
+                                "period_end": "Dec 27, 2025",
+                            },
+                        ],
+                        "table_chunk_records": [
+                            {
+                                "text": "[Table] Net Sales\nSection: Net Sales\nColumns: Segment | 2025 | 2024\nRows: 1-1\nServices: 2025=26,340; 2024=23,117",
+                                "section_name": "Net Sales",
+                                "period_end": "Dec 27, 2025",
+                            }
+                        ],
+                    },
+                }
+            ],
+        }
+    )
+
+    pipeline = FilingRetrievalPipeline(FakeEmbeddingProvider())
+    pipeline.index_chunks(chunk_records)
+    result = pipeline.search(
+        "What were the main drivers of revenue growth or decline this quarter?",
+        k=3,
+    )
+
+    assert result["query_plan"]["question_type"] == "revenue_driver"
+    assert any("revenue growth drivers" in subquery for subquery in result["query_plan"]["subqueries"])
+    assert any(chunk["source_type"] == "table" for chunk in result["results"])
+
+
+def test_batch_texts_for_embedding_splits_large_requests():
+    texts = ["a" * 3000, "b" * 3000, "c" * 3000]
+    batches = _batch_texts_for_embedding(texts, max_estimated_tokens=1500)
+    assert len(batches) == 3
+    assert batches[0] == ["a" * 3000]
+
+
+def test_json_embedding_cache_reuses_chunk_and_query_embeddings(tmp_path, monkeypatch):
+    calls = []
+
+    class FakeEmbeddingsAPI:
+        def create(self, model, input):
+            calls.append((model, tuple(input)))
+            return SimpleNamespace(
+                data=[
+                    SimpleNamespace(embedding=[float(len(text)), float(index)])
+                    for index, text in enumerate(input)
+                ]
+            )
+
+    class FakeOpenAI:
+        def __init__(self, api_key=None):
+            self.embeddings = FakeEmbeddingsAPI()
+
+    monkeypatch.setitem(sys.modules, "openai", SimpleNamespace(OpenAI=FakeOpenAI))
+
+    cache = JsonEmbeddingCache(tmp_path / "embedding_cache.json")
+    provider = OpenAIEmbeddingProvider(api_key="test-key", model="test-model", cache=cache)
+
+    first_chunk_embeddings = provider.embed_texts(["revenue", "risk"])
+    second_chunk_embeddings = provider.embed_texts(["revenue", "risk"])
+    first_query_embedding = provider.embed_query("What drove revenue growth?")
+    second_query_embedding = provider.embed_query("What drove revenue growth?")
+
+    assert first_chunk_embeddings == second_chunk_embeddings
+    assert first_query_embedding == second_query_embedding
+    assert calls == [
+        ("test-model", ("revenue", "risk")),
+        ("test-model", ("What drove revenue growth?",)),
     ]

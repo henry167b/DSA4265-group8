@@ -5,7 +5,7 @@ from unittest.mock import patch
 sys.modules.setdefault("yfinance", SimpleNamespace())
 sys.modules.setdefault("pandas", SimpleNamespace(MultiIndex=type("MultiIndex", (), {})))
 
-from backend.agents.yahoo_finance_agent import YahooFinanceAgent
+from backend.agents.financial_data_agent import YahooFinanceAgent
 
 
 def _mock_response(payload=None, text="", status_code=200):
@@ -25,8 +25,8 @@ def _mock_response(payload=None, text="", status_code=200):
     return MockResponse(payload, text, status_code)
 
 
-@patch("backend.agents.yahoo_finance_agent.time.sleep", return_value=None)
-@patch("backend.agents.yahoo_finance_agent.requests.get")
+@patch("backend.agents.financial_data_agent.time.sleep", return_value=None)
+@patch("backend.agents.financial_data_agent.requests.get")
 def test_get_recent_10q_filings_includes_document_html_when_requested(mock_get, _mock_sleep):
     agent = YahooFinanceAgent(user_email="test@example.com")
 
@@ -66,8 +66,8 @@ def test_get_recent_10q_filings_includes_document_html_when_requested(mock_get, 
     assert result["filings"][1]["document_html_length"] == len(result["filings"][1]["document_html"])
 
 
-@patch("backend.agents.yahoo_finance_agent.time.sleep", return_value=None)
-@patch("backend.agents.yahoo_finance_agent.requests.get")
+@patch("backend.agents.financial_data_agent.time.sleep", return_value=None)
+@patch("backend.agents.financial_data_agent.requests.get")
 def test_get_recent_10q_filings_skips_document_download_by_default(mock_get, _mock_sleep):
     agent = YahooFinanceAgent(user_email="test@example.com")
 
@@ -99,8 +99,8 @@ def test_get_recent_10q_filings_skips_document_download_by_default(mock_get, _mo
     assert mock_get.call_count == 2
 
 
-@patch("backend.agents.yahoo_finance_agent.time.sleep", return_value=None)
-@patch("backend.agents.yahoo_finance_agent.requests.get")
+@patch("backend.agents.financial_data_agent.time.sleep", return_value=None)
+@patch("backend.agents.financial_data_agent.requests.get")
 def test_get_recent_10q_filings_sorts_filings_chronologically(mock_get, _mock_sleep):
     agent = YahooFinanceAgent(user_email="test@example.com")
 
@@ -227,7 +227,7 @@ def test_answer_10q_question_uses_retrieval_pipeline_and_generation():
             "filings": [{"filing_date": "2024-08-28"}],
             "success": True,
         },
-    ), patch("backend.agents.yahoo_finance_agent.OpenAIChatGenerationProvider"):
+    ), patch("backend.agents.financial_data_agent.OpenAIChatGenerationProvider"):
         result = agent.answer_10q_question(
             ticker="NVDA",
             question="What changed in revenue?",
