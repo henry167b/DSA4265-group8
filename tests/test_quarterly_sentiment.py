@@ -33,7 +33,7 @@ def print_chunk_preview(chunks, max_chars=220):
 
 
 def main() -> None:
-    ticker = "MSFT"
+    ticker = "MSTF"
 
     yahoo_agent = YahooFinanceAgent()
     analyzer = QuarterlySentimentAnalyzer(
