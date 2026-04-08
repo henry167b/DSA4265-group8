@@ -56,13 +56,18 @@ def normalize_label(text: str) -> str:
     return match.group(1).capitalize()
 
 
-def label_from_return_percent(return_percent: Optional[float]) -> str:
+def label_from_return_percent(
+    return_percent: Optional[float],
+    price_label_threshold: float = 0.10,
+) -> str:
     if return_percent is None:
         return "Unknown"
 
-    if return_percent > 5:
+    threshold_percent = price_label_threshold * 100.0
+
+    if return_percent > threshold_percent:
         return "Bullish"
-    if return_percent < -5:
+    if return_percent < -threshold_percent:
         return "Bearish"
     return "Neutral"
 
@@ -71,6 +76,7 @@ def compute_actual_label_from_yfinance(
     ticker: str,
     filing_date: str,
     horizon_days: int = 90,
+    price_label_threshold: float = 0.10,
 ) -> Dict:
     """
     Compute actual label from price movement after the filing date.
@@ -154,7 +160,10 @@ def compute_actual_label_from_yfinance(
         }
 
     return_percent = ((end_price - start_price) / start_price) * 100.0
-    actual_label = label_from_return_percent(return_percent)
+    actual_label = label_from_return_percent(
+        return_percent,
+        price_label_threshold=price_label_threshold,
+    )
 
     return {
         "actual_label": actual_label,
@@ -187,295 +196,216 @@ def _detect_section_from_chunk_text(chunk_text: str) -> str:
     return UNKNOWN_SECTION
 
 
-def build_section_map_from_prepared_filing(filing: Dict) -> Dict[str, str]:
+def _filter_filing_to_relevant_prose_chunks(filing: Dict) -> Tuple[Dict, List[str]]:
     """
-    Build a mapping from chunk_id -> inferred section label for ONE filing.
+    Keep only the prose chunks that belong to MD&A or Risk Factors.
 
-    This walks through prose chunks in order and propagates the current
-    section until a new heading is detected.
+    This is the pre-filtering step that reduces embedding and LLM cost.
     """
-    section_map: Dict[str, str] = {}
-
-    accession_number = filing.get("accession_number", "")
     prepared_chunk_data = filing.get("prepared_chunk_data", {})
     prose_chunks = prepared_chunk_data.get("prose_chunks", [])
 
+    filtered_prose_chunks: List[str] = []
+    selected_sections = set()
+
     current_section = UNKNOWN_SECTION
 
-    for index, chunk_text in enumerate(prose_chunks):
-        chunk_id = f"{accession_number}:prose:{index}"
+    for chunk_text in prose_chunks:
         detected_section = _detect_section_from_chunk_text(chunk_text)
 
         if detected_section in SECTION_LABELS:
             current_section = detected_section
 
-        section_map[chunk_id] = current_section
+        if current_section in SECTION_LABELS:
+            filtered_prose_chunks.append(chunk_text)
+            selected_sections.add(current_section)
 
-    return section_map
+    if not filtered_prose_chunks:
+        filtered_prose_chunks = list(prose_chunks)
+        if prose_chunks:
+            selected_sections.add(UNKNOWN_SECTION)
+
+    filtered_prepared_chunk_data = dict(prepared_chunk_data)
+    filtered_prepared_chunk_data["prose_chunks"] = filtered_prose_chunks
+    filtered_prepared_chunk_data["table_chunks"] = []
+
+    filtered_filing = dict(filing)
+    filtered_filing["prepared_chunk_data"] = filtered_prepared_chunk_data
+    filtered_filing["selected_sections"] = sorted(selected_sections)
+    filtered_filing["pre_filtered"] = True
+
+    return filtered_filing, sorted(selected_sections)
 
 
-def _chunk_order_key(chunk_id: str) -> Tuple[int, str]:
-    try:
-        index_part = int(chunk_id.rsplit(":", 1)[-1])
-    except Exception:
-        index_part = 0
-    return index_part, chunk_id
-
-
-def retrieve_relevant_chunks_for_filing(
-    pipeline: FilingRetrievalPipeline,
-    section_map: Dict[str, str],
-    filing: Dict,
-    query: str,
-    retrieval_k: int = 20,
-    top_k: int = 8,
-) -> List[Dict]:
+class QuarterlySentimentAnalyzer:
     """
-    Retrieve relevant chunks for one filing, then keep only prose chunks from
-    MDA / Risk sections.
+    Analyze the sentiment of the latest 10-Q filings for a ticker and compare
+    the model prediction against realized stock movement.
     """
-    accession_number = filing.get("accession_number", "")
-    retrieval = pipeline.search(query=query, k=retrieval_k)
 
-    if not retrieval.get("success"):
-        return []
+    def __init__(
+        self,
+        yahoo_agent: Optional[YahooFinanceAgent] = None,
+        top_k: int = 5,
+        num_quarters: int = 4,
+        retrieval_k: int = 20,
+        price_label_threshold: float = 0.10,
+        horizon_days: int = 90,
+        openai_api_key: Optional[str] = None,
+        embedding_model: str = "text-embedding-3-small",
+        generation_model: str = "gpt-4o-mini",
+    ):
+        self.yahoo_agent = yahoo_agent or YahooFinanceAgent()
+        self.top_k = top_k
+        self.num_quarters = num_quarters
+        self.retrieval_k = retrieval_k
+        self.price_label_threshold = price_label_threshold
+        self.horizon_days = horizon_days
+        self.openai_api_key = openai_api_key
+        self.embedding_model = embedding_model
+        self.generation_model = generation_model
 
-    selected: List[Dict] = []
-    seen_chunk_ids = set()
+    def _build_pipeline_for_single_filing(self, ticker: str, filing: Dict) -> Tuple[FilingRetrievalPipeline, List[str], int]:
+        filtered_filing, selected_sections = _filter_filing_to_relevant_prose_chunks(filing)
 
-    for item in retrieval.get("results", []):
-        if item.get("accession_number") != accession_number:
-            continue
-        if item.get("source_type") != "prose":
-            continue
-
-        chunk_id = item.get("chunk_id", "")
-        section = section_map.get(chunk_id, UNKNOWN_SECTION)
-
-        if section not in SECTION_LABELS:
-            continue
-
-        if chunk_id in seen_chunk_ids:
-            continue
-
-        seen_chunk_ids.add(chunk_id)
-        item = dict(item)
-        item["section"] = section
-        selected.append(item)
-
-    if not selected:
-        fallback: List[Dict] = []
-        for chunk_record in pipeline.chunk_records:
-            if chunk_record.accession_number != accession_number:
-                continue
-            if chunk_record.source_type != "prose":
-                continue
-
-            section = section_map.get(chunk_record.chunk_id, UNKNOWN_SECTION)
-            if section not in SECTION_LABELS:
-                continue
-
-            record_dict = chunk_record.to_dict()
-            record_dict["section"] = section
-            fallback.append(record_dict)
-
-        fallback.sort(
-            key=lambda x: (
-                _chunk_order_key(x.get("chunk_id", ""))[0],
-                x.get("chunk_id", ""),
-            )
-        )
-        selected = fallback
-
-    selected.sort(
-        key=lambda x: (
-            -float(x.get("score", 0.0) or 0.0),
-            _chunk_order_key(x.get("chunk_id", ""))[0],
-            x.get("chunk_id", ""),
-        )
-    )
-
-    return selected[:top_k]
-
-
-def analyze_single_filing(
-    ticker: str,
-    filing: Dict,
-    pipeline: FilingRetrievalPipeline,
-    section_map: Dict[str, str],
-    generation_provider: OpenAIChatGenerationProvider,
-    retrieval_k: int = 20,
-    top_k: int = 8,
-    horizon_days: int = 90,
-) -> Dict:
-    query = "management discussion and analysis risk factors financial performance outlook"
-    selected_chunks = retrieve_relevant_chunks_for_filing(
-        pipeline=pipeline,
-        section_map=section_map,
-        filing=filing,
-        query=query,
-        retrieval_k=retrieval_k,
-        top_k=top_k,
-    )
-
-    if not selected_chunks:
-        predicted_label = "Neutral"
-        model_error = "No relevant chunks retrieved."
-    else:
-        prompt = build_classification_prompt(ticker, filing)
-        raw_prediction = generation_provider.generate_answer(
-            question=prompt,
-            retrieved_chunks=selected_chunks,
-        )
-        predicted_label = normalize_label(raw_prediction)
-        model_error = None
-
-    actual_result = compute_actual_label_from_yfinance(
-        ticker=ticker,
-        filing_date=filing.get("filing_date", ""),
-        horizon_days=horizon_days,
-    )
-
-    return {
-        "ticker": ticker.upper(),
-        "quarter": filing.get("quarter", "N/A"),
-        "filing_date": filing.get("filing_date", "N/A"),
-        "accession_number": filing.get("accession_number", "N/A"),
-        "form_type": filing.get("form_type", "10-Q"),
-        "predicted_label": predicted_label,
-        "actual_label": actual_result.get("actual_label", "Unknown"),
-        "actual_return_percent": actual_result.get("actual_return_percent"),
-        "actual_price_start": actual_result.get("actual_price_start"),
-        "actual_price_end": actual_result.get("actual_price_end"),
-        "chunks_used": len(selected_chunks),
-        "selected_sections": sorted(
-            {chunk.get("section", UNKNOWN_SECTION) for chunk in selected_chunks}
-        ),
-        "model_error": model_error,
-        "price_error": actual_result.get("error"),
-    }
-
-
-def analyze_ticker_10q_sentiment(
-    ticker: str,
-    openai_api_key: Optional[str] = None,
-    num_quarters: int = 4,
-    retrieval_k: int = 20,
-    top_k: int = 8,
-    horizon_days: int = 90,
-    embedding_model: str = "text-embedding-3-small",
-    generation_model: str = "gpt-4o-mini",
-) -> List[Dict]:
-    """
-    End-to-end pipeline for one ticker:
-      1. Fetch and chunk recent 10-Q filings
-      2. Build section map per filing (MDA / Risk)
-      3. Index each filing separately
-      4. Retrieve only relevant chunks from that filing
-      5. Ask OpenAI for a sentiment label
-      6. Compute actual label from post-filing price movement
-      7. Return a list of result dictionaries
-    """
-    agent = YahooFinanceAgent()
-
-    prepared_filings = agent.prepare_recent_10q_filings_for_chunking(
-        ticker=ticker,
-        num_quarters=num_quarters,
-    )
-
-    if not prepared_filings.get("success"):
-        return [
-            {
-                "ticker": ticker.upper(),
-                "predicted_label": "Error",
-                "actual_label": "Unknown",
-                "error": prepared_filings.get("error", "Failed to prepare filings."),
-            }
-        ]
-
-    generation_provider = OpenAIChatGenerationProvider(
-        api_key=openai_api_key,
-        model=generation_model,
-    )
-
-    results: List[Dict] = []
-
-    for filing in prepared_filings.get("filings", []):
-        single_prepared = {
+        single_prepared_filings = {
             "ticker": ticker,
-            "filings": [filing],
+            "filings": [filtered_filing],
         }
 
-        chunk_records = build_chunk_records_from_prepared_filings(single_prepared)
-        if not chunk_records:
-            results.append(
-                {
-                    "ticker": ticker.upper(),
-                    "quarter": filing.get("quarter", "N/A"),
-                    "filing_date": filing.get("filing_date", "N/A"),
-                    "accession_number": filing.get("accession_number", "N/A"),
-                    "form_type": filing.get("form_type", "10-Q"),
-                    "predicted_label": "Neutral",
-                    "actual_label": "Unknown",
-                    "actual_return_percent": None,
-                    "actual_price_start": None,
-                    "actual_price_end": None,
-                    "chunks_used": 0,
-                    "selected_sections": [],
-                    "model_error": "No chunks were built for this filing.",
-                    "price_error": None,
-                }
-            )
-            continue
-
-        section_map = build_section_map_from_prepared_filing(filing)
+        chunk_records = build_chunk_records_from_prepared_filings(single_prepared_filings)
+        chunk_count = len(chunk_records)
 
         embedding_provider = OpenAIEmbeddingProvider(
-            api_key=openai_api_key,
-            model=embedding_model,
+            api_key=self.openai_api_key,
+            model=self.embedding_model,
         )
         pipeline = FilingRetrievalPipeline(embedding_provider)
-        index_result = pipeline.index_chunks(chunk_records)
+        pipeline.index_chunks(chunk_records)
 
-        if not index_result.get("success"):
-            results.append(
-                {
-                    "ticker": ticker.upper(),
-                    "quarter": filing.get("quarter", "N/A"),
-                    "filing_date": filing.get("filing_date", "N/A"),
-                    "accession_number": filing.get("accession_number", "N/A"),
-                    "form_type": filing.get("form_type", "10-Q"),
-                    "predicted_label": "Neutral",
-                    "actual_label": "Unknown",
-                    "actual_return_percent": None,
-                    "actual_price_start": None,
-                    "actual_price_end": None,
-                    "chunks_used": 0,
-                    "selected_sections": [],
-                    "model_error": "Failed to index chunks.",
-                    "price_error": None,
-                }
-            )
-            continue
+        return pipeline, selected_sections, chunk_count
 
-        result = analyze_single_filing(
+    def _retrieve_chunks_for_filing(
+        self,
+        pipeline: FilingRetrievalPipeline,
+        filing: Dict,
+    ) -> List[Dict]:
+        query = "management discussion and analysis risk factors financial performance outlook"
+        retrieval = pipeline.search(query=query, k=self.retrieval_k)
+
+        if not retrieval.get("success"):
+            return []
+
+        selected_chunks = retrieval.get("results", [])[: self.top_k]
+
+        return selected_chunks
+
+    def analyze_single_filing(self, ticker: str, filing: Dict) -> Dict:
+        pipeline, selected_sections, chunk_count = self._build_pipeline_for_single_filing(
             ticker=ticker,
             filing=filing,
-            pipeline=pipeline,
-            section_map=section_map,
-            generation_provider=generation_provider,
-            retrieval_k=retrieval_k,
-            top_k=top_k,
-            horizon_days=horizon_days,
         )
-        results.append(result)
 
-    return results
+        retrieved_chunks = self._retrieve_chunks_for_filing(pipeline=pipeline, filing=filing)
+
+        model_error = None
+        raw_answer = ""
+        predicted_label = "Neutral"
+
+        if retrieved_chunks:
+            generation_provider = OpenAIChatGenerationProvider(
+                api_key=self.openai_api_key,
+                model=self.generation_model,
+            )
+
+            prompt = build_classification_prompt(ticker, filing)
+            raw_answer = generation_provider.generate_answer(
+                question=prompt,
+                retrieved_chunks=retrieved_chunks,
+            )
+            predicted_label = normalize_label(raw_answer)
+        else:
+            model_error = "No relevant chunks retrieved."
+
+        actual_result = compute_actual_label_from_yfinance(
+            ticker=ticker,
+            filing_date=filing.get("filing_date", ""),
+            horizon_days=self.horizon_days,
+            price_label_threshold=self.price_label_threshold,
+        )
+
+        return {
+            "ticker": ticker.upper(),
+            "quarter": filing.get("quarter", "N/A"),
+            "filing_date": filing.get("filing_date", "N/A"),
+            "accession_number": filing.get("accession_number", "N/A"),
+            "form_type": filing.get("form_type", "10-Q"),
+            "predicted_label": predicted_label,
+            "predicted_raw_answer": raw_answer,
+            "realized_next_quarter_label": actual_result.get("actual_label", "Unknown"),
+            "actual_label": actual_result.get("actual_label", "Unknown"),
+            "realized_next_quarter_pct_change": actual_result.get("actual_return_percent"),
+            "actual_return_percent": actual_result.get("actual_return_percent"),
+            "realized_next_quarter_start_price": actual_result.get("actual_price_start"),
+            "actual_price_start": actual_result.get("actual_price_start"),
+            "realized_next_quarter_end_price": actual_result.get("actual_price_end"),
+            "actual_price_end": actual_result.get("actual_price_end"),
+            "chunks_used": len(retrieved_chunks),
+            "chunk_count": chunk_count,
+            "selected_sections": selected_sections,
+            "retrieved_chunks": retrieved_chunks,
+            "model_error": model_error,
+            "price_error": actual_result.get("error"),
+        }
+
+    def analyze_ticker(self, ticker: str) -> Dict:
+        """
+        Main entry point.
+
+        Returns a dictionary with:
+          - ticker
+          - generated_at
+          - filing_count
+          - chunk_count
+          - quarterly_results
+        """
+        prepared_filings = self.yahoo_agent.prepare_recent_10q_filings_for_chunking(
+            ticker=ticker,
+            num_quarters=self.num_quarters,
+        )
+
+        if not prepared_filings.get("success"):
+            return {
+                "success": False,
+                "ticker": ticker.upper(),
+                "error": prepared_filings.get("error", "Failed to prepare filings."),
+                "generated_at": datetime.now().isoformat(),
+                "filing_count": 0,
+                "chunk_count": 0,
+                "quarterly_results": [],
+            }
+
+        quarterly_results: List[Dict] = []
+        total_chunk_count = 0
+
+        for filing in prepared_filings.get("filings", []):
+            result = self.analyze_single_filing(ticker=ticker, filing=filing)
+            quarterly_results.append(result)
+            total_chunk_count += int(result.get("chunk_count", 0) or 0)
+
+        return {
+            "success": True,
+            "ticker": ticker.upper(),
+            "generated_at": datetime.now().isoformat(),
+            "filing_count": len(prepared_filings.get("filings", [])),
+            "chunk_count": total_chunk_count,
+            "quarterly_results": quarterly_results,
+        }
 
 
 if __name__ == "__main__":
-    # Example usage:
-    # export OPENAI_API_KEY=...
-    # results = analyze_ticker_10q_sentiment("AAPL")
-    # print(results)
+    # Example:
+    # analyzer = QuarterlySentimentAnalyzer()
+    # result = analyzer.analyze_ticker("AAPL")
+    # print(result)
     pass
