@@ -16,6 +16,8 @@ load_dotenv()
 MAX_EMBEDDING_TEXT_CHARS = 6000
 EMBEDDING_SPLIT_OVERLAP_CHARS = 400
 MAX_EMBEDDING_TOKENS_PER_REQUEST = 250000
+MAX_GENERATION_CONTEXT_CHARS = 18000
+MAX_GENERATION_CHUNK_CHARS = 3000
 OPENAI_RETRY_ATTEMPTS = 4
 OPENAI_RETRY_BASE_DELAY_SECONDS = 1.0
 DATE_PATTERN = re.compile(
@@ -77,6 +79,20 @@ QUESTION_TYPE_METRIC_ALIASES = {
     "liquidity": ["liquidity", "capital resources", "cash", "cash equivalents", "debt"],
     "cash_flow": ["cash flow", "operating cash flow", "investing", "financing", "liquidity"],
 }
+QUESTION_TYPE_RECOMMENDED_K = {
+    "risk_material": 10,
+    "management_actions": 10,
+    "revenue_driver": 8,
+    "forward_revenue_driver": 8,
+    "profitability_margin": 8,
+    "forward_pressure": 8,
+    "liquidity": 8,
+    "cash_flow": 8,
+    "fact": 5,
+    "narrative": 6,
+    "general": 5,
+}
+
 QUESTION_TYPE_SOURCE_PREFERENCES = {
     "risk_material": ["prose", "table"],
     "management_actions": ["prose", "table"],
@@ -473,9 +489,10 @@ class FilingRetrievalPipeline:
         self,
         question: str,
         generation_provider: GenerationProvider,
-        k: int = 5,
+        k: Optional[int] = None,
     ) -> Dict:
-        retrieval_result = self.search(question, k=k)
+        effective_k = k if k is not None else build_query_plan(question).get("recommended_k", 5)
+        retrieval_result = self.search(question, k=effective_k)
         if not retrieval_result.get("success"):
             return retrieval_result
 
@@ -564,21 +581,46 @@ def build_chunk_records_from_prepared_filings(prepared_filings_data: Dict) -> Li
 
 
 def build_generation_context(retrieved_chunks: List[Dict]) -> str:
-    context_blocks = [
+    intro = (
         "Retrieved 10-Q excerpts are intentionally ordered chronologically from oldest filing to newest filing."
-    ]
+    )
+    context_blocks = [intro]
+    total_chars = len(intro)
+    omitted_chunks = 0
+
     for index, chunk in enumerate(retrieved_chunks, start=1):
         metadata = (
-            f"Ticker: {chunk.get('ticker', 'N/A')} | "
-            f"Quarter: {chunk.get('quarter', 'N/A')} | "
-            f"Filed: {chunk.get('filing_date', 'N/A')} | "
-            f"Source: {chunk.get('source_type', 'N/A')} | "
-            f"Section: {chunk.get('section_name') or 'N/A'} | "
-            f"Period End: {chunk.get('period_end') or 'N/A'}"
+            f"Ticker: {_sanitize_generation_value(chunk.get('ticker', 'N/A'))} | "
+            f"Quarter: {_sanitize_generation_value(chunk.get('quarter', 'N/A'))} | "
+            f"Filed: {_sanitize_generation_value(chunk.get('filing_date', 'N/A'))} | "
+            f"Source: {_sanitize_generation_value(chunk.get('source_type', 'N/A'))} | "
+            f"Section: {_sanitize_generation_value(chunk.get('section_name') or 'N/A')} | "
+            f"Period End: {_sanitize_generation_value(chunk.get('period_end') or 'N/A')}"
         )
+        text = _sanitize_generation_text(chunk.get("text", ""))
+        text = _truncate_generation_text(
+            text,
+            max_chars=MAX_GENERATION_CHUNK_CHARS,
+            suffix="\n[Excerpt truncated for prompt size]",
+        )
+
+        block = f"Chunk {index}\n{metadata}\n{text}"
+        block_with_separator = (
+            f"\n\n---\n\n{block}" if len(context_blocks) > 1 else f"\n\n{block}"
+        )
+
+        if total_chars + len(block_with_separator) > MAX_GENERATION_CONTEXT_CHARS:
+            omitted_chunks = len(retrieved_chunks) - index + 1
+            break
+
+        context_blocks.append(block)
+        total_chars += len(block_with_separator)
+
+    if omitted_chunks:
         context_blocks.append(
-            f"Chunk {index}\n{metadata}\n{chunk.get('text', '')}"
+            f"[{omitted_chunks} additional retrieved chunks omitted for prompt size]"
         )
+
     return "\n\n---\n\n".join(context_blocks)
 
 
@@ -623,6 +665,7 @@ def build_query_plan(question: str) -> Dict[str, object]:
         "preferred_sections": preferred_sections,
         "preferred_source_types": preferred_source_types,
         "subqueries": subqueries,
+        "recommended_k": QUESTION_TYPE_RECOMMENDED_K.get(question_type, 5),
         "needs_numeric_support": question_type in {"fact", "profitability_margin", "cash_flow", "liquidity"},
         "needs_explanatory_support": question_type in {
             "narrative",
@@ -704,6 +747,51 @@ def _normalize_date_string(value: Optional[str]) -> Optional[str]:
         except ValueError:
             continue
     return None
+
+
+def _sanitize_generation_value(value: object) -> str:
+    if value is None:
+        return "N/A"
+    return _sanitize_generation_text(str(value)) or "N/A"
+
+
+def _sanitize_generation_text(text: object) -> str:
+    if text is None:
+        return ""
+    if not isinstance(text, str):
+        text = str(text)
+
+    sanitized_chars: List[str] = []
+    for char in text:
+        codepoint = ord(char)
+        if codepoint == 0:
+            continue
+        if 0xD800 <= codepoint <= 0xDFFF:
+            continue
+        if codepoint < 32 and char not in "\n\r\t":
+            sanitized_chars.append(" ")
+            continue
+        sanitized_chars.append(char)
+
+    sanitized = "".join(sanitized_chars)
+    sanitized = sanitized.replace("\r\n", "\n").replace("\r", "\n")
+    return sanitized.strip()
+
+
+def _truncate_generation_text(text: str, max_chars: int, suffix: str) -> str:
+    if len(text) <= max_chars:
+        return text
+
+    available_chars = max(0, max_chars - len(suffix))
+    truncated = text[:available_chars].rstrip()
+
+    for separator in ("\n\n", "\n", ". ", " "):
+        split_index = truncated.rfind(separator)
+        if split_index >= max_chars // 2:
+            truncated = truncated[:split_index].rstrip()
+            break
+
+    return f"{truncated}{suffix}"
 
 
 def expand_oversized_chunk_records(

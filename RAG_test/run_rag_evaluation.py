@@ -67,7 +67,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Use an LLM judge to score relevance, completeness, and faithfulness.",
     )
-    parser.add_argument("-k", type=int, default=5, help="Top-k chunks to retrieve.")
+    parser.add_argument(
+        "-k",
+        type=int,
+        default=None,
+        help="Top-k chunks to retrieve. Defaults to per-question-type recommended_k if not set.",
+    )
     parser.add_argument(
         "--report-file",
         default=str(RESULTS_DIR / "rag_evaluation_report.json"),
@@ -352,7 +357,7 @@ def main() -> None:
         "generation_model": args.generation_model,
         "reranker_model": args.reranker_model if reranker is not None else None,
         "embedding_cache_file": None if embedding_cache is None else str(embedding_cache.path),
-        "k": args.k,
+        "k": args.k if args.k is not None else "per_question_type",
         "summary": {
             "num_examples": len(results),
             "answer_accuracy": (
