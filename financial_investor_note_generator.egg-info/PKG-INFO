@@ -37,6 +37,8 @@ The current architecture uses five coordinated agents:
 4. **Zipin** - Creates the main report draft and generates visualizations.
 5. **Jason** - Edits the draft as a senior analyst, ensuring the final answer meets user-specific requirements.
 
+The runnable LangChain research agent can also be wrapped in a supervisor framework that performs a final review pass over the generated answer, flags issues, and returns an edited final output plus a supervisor audit record.
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -66,14 +68,11 @@ DSA4265-group8/
 ├── .env
 ├── backend/
 ├── frontend/
+├── tests
 └── README.md
 ```
 
-3. Add your OpenAI key to the `.env` file in this format:
-
-```env
-OPENAI_API_KEY=your_openai_api_key_here
-```
+3. Use the shared `.env` file provided by the team and place it directly in the project root.
 
 4. Do not commit `.env`; it is already ignored by Git.
 

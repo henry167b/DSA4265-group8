@@ -24,6 +24,8 @@ The current architecture uses five coordinated agents:
 4. **Zipin** - Creates the main report draft and generates visualizations.
 5. **Jason** - Edits the draft as a senior analyst, ensuring the final answer meets user-specific requirements.
 
+The runnable LangChain research agent can also be wrapped in a supervisor framework that performs a final review pass over the generated answer, flags issues, and returns an edited final output plus a supervisor audit record.
+
 ## Tech Stack
 
 | Layer | Technology |

@@ -1,11 +1,12 @@
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from langchain_core.tools import tool
 from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
 
 from .yahoo_finance_agent import YahooFinanceAgent
+from .quarterly_sentiment import SentimentEmbeddingProvider
 from .supervisor_framework import OutputSupervisor, SupervisedAgentRunner
 
 from datetime import datetime
@@ -15,6 +16,7 @@ import re
 
 # Instantiate your existing agent
 yf_agent = YahooFinanceAgent(user_email="e0968923@u.nus.edu")
+sentiment_agent = SentimentEmbeddingProvider()
 
 
 # ── Tool 1: Stock data + formatted output ──────────────────────────────────
@@ -76,12 +78,37 @@ def answer_10q_question(
     ticker: str,
     question: str,
 ) -> str:
-    """Answer a specific question by searching through recent 10-Q filings using our implementedRAG."""
+    """Answer a specific question by searching through recent 10-Q filings using our implemented RAG."""
     result = yf_agent.answer_10q_question(ticker, question)
     return result.get("answer", "Could not generate answer.")
 
+# ── Tool 5: Sentiment analysis over quarterly reports ──────────────────────────────────────────
+class SentimentInput(BaseModel):
+    ticker: str = Field(..., description="Stock ticker symbol, e.g. AAPL")
+    num_quarters: int = Field(
+        4,
+        description="Number of most recent quarterly reports to analyze"
+    )
 
-# ── Tool 5: Full combined analysis ─────────────────────────────────────────
+
+@tool(args_schema=SentimentInput)
+def analyze_quarterly_sentiment(ticker: str, num_quarters: int = 4) -> str:
+    """
+    Analyze the sentiment of the most recent quarterly reports for a stock
+    and return a concise summary for downstream agents.
+    """
+    try:
+        result = SentimentEmbeddingProvider.analyze_quarterly_reports(
+            ticker=ticker,
+            num_quarters=num_quarters
+        )
+        return SentimentEmbeddingProvider.format_for_next_agent(result)
+    except Exception as e:
+        return f"Failed to analyze quarterly sentiment for {ticker}: {str(e)}"
+
+
+
+# ── Tool 6: Full combined analysis ─────────────────────────────────────────
 class CompleteAnalysisInput(BaseModel):
     ticker: str
 
@@ -104,6 +131,7 @@ tools = [
     get_sec_filings,
     get_financial_facts,
     answer_10q_question,
+    analyze_quarterly_sentiment,
     get_complete_analysis,
 ]
 
@@ -121,6 +149,14 @@ def build_agent(model: str = "gpt-5.4"):
         - Deliver a direct, well-structured, evidence-based investment analysis.
         - Use relevant tool outputs to support the analysis.
         - Prioritize factual accuracy, clarity, and financial relevance.
+        
+        TOOL USAGE GUIDELINES
+        - Use available tools selectively to gather relevant information before forming conclusions.
+        - Use stock data tools for price performance, valuation metrics, and market data.
+        - Use filings retrieval tools for financials, disclosures, and risk factors.
+        - Use quarterly sentiment analysis when assessing management tone, forward guidance, or qualitative outlook.
+        - Do not call tools unnecessarily; only use them when they add material value to the analysis.
+        - Integrate tool outputs into the narrative rather than listing them mechanically.
 
         STYLE
         - Write in a formal, analytical, professional tone.
