@@ -1,0 +1,157 @@
+TOOL CALL: get_complete_analysis_data | ARGS: {'ticker': 'AAPL'}
+
+TOOL CALL: answer_10q_question | ARGS: {'ticker': 'AAPL', 'question': 'Identify and summarize the key risks, uncertainties, and cautionary disclosures highlighted in the latest 10-Q, including any commentary on demand, supply chain, regulation, litigation, liquidity, capital returns, and geographic exposure.'}
+
+TOOL CALL: analyze_quarterly_sentiment | ARGS: {'ticker': 'AAPL', 'num_quarters': 4}
+
+TOOL CALL: get_company_overview | ARGS: {'ticker': 'AAPL'}
+
+TOOL OUTPUT: 
+=== EXECUTIVE SUMMARY ===
+AAPL shows a N/A% return over the past month, with a P/E ratio of 32.821266. Analyst sentiment is 'neutral'. Based on recent performance and market sentiment, the recommendation is: HOLD / NEUTRAL.
+
+=== COMPANY OVERVIEW ===
+Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide. The company offers iPhone, a line of smartphones; Mac, a line of personal computers; iPad, a line of multi-purpose tablets; and wearables, home, and accessories comprising AirPods, Apple Vision Pro, Apple TV, Apple Watch, Beats products, and HomePod, as well as Apple branded and third-party accessories. It also provides AppleCare support and cloud services; and operates various platforms, including the App Store that allow customers to discover and download applications and digital content, such as books, music, video, games, and podcasts, as well as advertising services include third-party licensing arrangements and its own advertising platforms. In addition, the company offers various subscription-based services, such as Apple Arcade, a game subscription service; Apple Fitness+, a personalized fitness service; Apple Music, which offers users a curated listening experience with on-demand radio stations; Apple News+, a subscription news and magazine service; Apple TV, which offers exclusive original content and live sports; Apple Card, a co-branded credit card; and Apple Pay, a cashless payment service, as well as licenses its intellectual property. The company serves consumers, and small and mid-sized businesses; and the education, enterprise, and government markets. It distributes third-party applications for its products through the App Store. The company also sells its products through its retail and online stores, and direct sales force; and third-party cellular network carriers and resellers. The company was formerly known as Apple Computer, Inc. and changed its name to Apple Inc. in January 2007. Apple Inc. was founded in 1976 and is headquartered in Cupertino, California.
+
+
+=== YAHOO FINANCE DATA FOR AAPL ===
+
+CURRENT PRICE: $259.28
+DAILY CHANGE: 0.15%
+VOLUME: 11,601,378 (Avg: 47,424,558)
+MARKET CAP: $3,810,584,428,544
+
+KEY METRICS:
+- P/E Ratio: 32.817722
+- Forward P/E: 27.797764
+- EPS: $7.9
+- Profit Margin: 27.04
+- Beta: 1.109
+
+PERFORMANCE (Last 30 Days):
+- Start Price: N/A
+- End Price: N/A
+- Total Return: N/A
+- Volatility: N/A
+
+ANALYST COVERAGE:
+- Price Target: $296.12
+- Target Range: $205.00 - $350.00
+- Analyst Rating: Buy
+- Analysts Covering: 40
+
+RECENT NEWS:
+1. Tech stocks today: Meta, CoreWeave agree to $21 billion deal - {'displayName': 'Yahoo Finance', 'url': 'http://finance.yahoo.com/', 'sourceId': 'yahoofinance.com'}
+2. Goldman Sachs spots a buying opportunity in bruised Big Tech - {'displayName': 'TheStreet', 'url': 'https://www.thestreet.com/', 'sourceId': 'thestreet_881'}
+3. JPMorgan Joins Project Glasswing To Tackle AI Cyber Risks And Resilience - {'displayName': 'Simply Wall St.', 'url': 'https://simplywall.st/', 'sourceId': 'simply_wall_st__316'}
+4. Investors Cautiously Lean Into a Tenuous Stock Market - {'displayName': 'Investopedia', 'url': 'https://www.investopedia.com/', 'sourceId': 'investopedia_245'}
+5. Tech Sell-Off: 2 "Magnificent Seven" Stocks to Buy With $500 and Hold Forever - {'displayName': 'Motley Fool', 'url': 'http://www.fool.com/', 'sourceId': 'motleyfool.com'}
+
+=== SEC EDGAR FILING DATA ===
+
+Company: Apple Inc. (AAPL)
+CIK: 0000320193
+
+RECENT 10-Q FILINGS:
+
+- 2026 Q1 (Filed: 2026-01-30)
+  Document URL: https://www.sec.gov/Archives/edgar/data/320193/000032019326000006/aapl-20251227.htm
+
+- 2025 Q3 (Filed: 2025-08-01)
+  Document URL: https://www.sec.gov/Archives/edgar/data/320193/000032019325000073/aapl-20250628.htm
+
+- 2025 Q2 (Filed: 2025-05-02)
+  Document URL: https://www.sec.gov/Archives/edgar/data/320193/000032019325000057/aapl-20250329.htm
+
+- 2025 Q1 (Filed: 2025-01-31)
+  Document URL: https://www.sec.gov/Archives/edgar/data/320193/000032019325000008/aapl-20241228.htm
+
+=== XBRL FINANCIAL DATA ===
+Company: Apple Inc.
+
+KEY METRICS (Last 4 Quarters):
+
+Revenue:
+  2018-09: $265,595,000,000 USD (YoY: 200.81%)
+  2018-09: $62,900,000,000 USD (YoY: -72.56%)
+  2018-06: $53,265,000,000 USD (YoY: 1.3%)
+  2018-03: $61,137,000,000 USD (YoY: 34.64%)
+
+NetIncome:
+  2025-12: $42,097,000,000 USD
+  2025-09: $112,010,000,000 USD
+  2025-06: $84,544,000,000 USD
+  2025-06: $23,434,000,000 USD
+
+GrossProfit:
+  2025-12: $69,231,000,000 USD
+  2025-09: $195,201,000,000 USD
+  2025-06: $146,860,000,000 USD
+  2025-06: $43,718,000,000 USD
+
+OperatingIncome:
+  2025-12: $50,852,000,000 USD
+  2025-09: $133,050,000,000 USD
+  2025-06: $100,623,000,000 USD
+  2025-06: $28,202,000,000 USD
+
+EarningsPerShare:
+  2025-12: $3 USD
+  2025-09: $7 USD
+  2025-06: $6 USD
+  2025-06: $2 USD
+
+TotalAssets:
+  2025-12: $379,297,000,000 USD
+  2025-09: $359,241,000,000 USD
+  2025-09: $359,241,000,000 USD
+  2025-06: $331,495,000,000 USD
+
+TotalLiabilities:
+  2025-12: $291,107,000,000 USD
+  2025-09: $285,508,000,000 USD
+  2025-09: $285,508,000,000 USD
+  2025-06: $265,665,000,000 USD
+
+CashAndCashEquivalents:
+  2025-12: $45,317,000,000 USD
+  2025-09: $35,934,000,000 USD
+  2025-09: $35,934,000,000 USD
+  2025-06: $36,269,000,000 USD
+
+OperatingCashFlow:
+  2025-12: $53,925,000,000 USD
+  2025-09: $111,482,000,000 USD
+  2025-06: $81,754,000,000 USD
+  2025-03: $53,887,000,000 USD
+
+ResearchAndDevelopment:
+  2025-12: $10,887,000,000 USD
+  2025-09: $34,550,000,000 USD
+  2025-06: $25,684,000,000 USD
+  2025-06: $8,866,000,000 USD
+
+TOOL OUTPUT: The latest 10-Q filing for Apple Inc. (AAPL) highlights several key risks, uncertainties, and cautionary disclosures:
+
+1. **General Risks**: The Company’s business, reputation, results of operations, financial condition, and stock price can be materially and adversely affected by various factors, including those outlined in the 2025 Form 10-K under "Risk Factors." There have been no material changes to these risk factors since the last filing.
+
+2. **Regulatory Risks**: Apple is currently facing investigations under the EU Digital Markets Act (DMA), including a formal noncompliance investigation and a potential fine of €500 million. The Company has appealed this decision and is also under investigation for its contractual requirements for third-party app developers, which could lead to further fines.
+
+3. **Litigation Risks**: The U.S. Department of Justice has filed a civil antitrust lawsuit against Apple, alleging monopolization in the smartphone market. The Company is also involved in litigation with Epic Games regarding antitrust laws related to its App Store operations.
+
+4. **Supply Chain and Demand Risks**: The Company utilizes several outsourcing partners for manufacturing and has significant purchase obligations, totaling $44.4 billion for manufacturing and $35.1 billion for other obligations as of December 27, 2025. This reliance on third-party suppliers exposes Apple to risks related to supply chain disruptions.
+
+5. **Liquidity and Capital Returns**: Apple believes its cash, cash equivalents, and marketable securities, along with cash generated from operations, will be sufficient to meet its cash requirements and capital return program. The Company repurchased $25.0 billion of its common stock and paid $3.9 billion in dividends during the first quarter of 2026.
+
+6. **Geographic Exposure**: The Company has noted that its revenue from Greater China has shown a moderately higher proportion of net sales from iPhone revenue, indicating geographic exposure that could affect overall performance.
+
+Overall, Apple is navigating a complex landscape of regulatory scrutiny, litigation, and supply chain dependencies while maintaining a focus on liquidity and capital returns.
+
+TOOL OUTPUT: Failed to analyze quarterly sentiment for AAPL: type object 'SentimentEmbeddingProvider' has no attribute 'analyze_quarterly_reports'
+
+TOOL OUTPUT: 
+=== EXECUTIVE SUMMARY ===
+AAPL shows a N/A% return over the past month, with a P/E ratio of 32.82025. Analyst sentiment is 'neutral'. Based on recent performance and market sentiment, the recommendation is: HOLD / NEUTRAL.
+
+=== COMPANY OVERVIEW ===
+Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide. The company offers iPhone, a line of smartphones; Mac, a line of personal computers; iPad, a line of multi-purpose tablets; and wearables, home, and accessories comprising AirPods, Apple Vision Pro, Apple TV, Apple Watch, Beats products, and HomePod, as well as Apple branded and third-party accessories. It also provides AppleCare support and cloud services; and operates various platforms, including the App Store that allow customers to discover and download applications and digital content, such as books, music, video, games, and podcasts, as well as advertising services include third-party licensing arrangements and its own advertising platforms. In addition, the company offers various subscription-based services, such as Apple Arcade, a game subscription service; Apple Fitness+, a personalized fitness service; Apple Music, which offers users a curated listening experience with on-demand radio stations; Apple News+, a subscription news and magazine service; Apple TV, which offers exclusive original content and live sports; Apple Card, a co-branded credit card; and Apple Pay, a cashless payment service, as well as licenses its intellectual property. The company serves consumers, and small and mid-sized businesses; and the education, enterprise, and government markets. It distributes third-party applications for its products through the App Store. The company also sells its products through its retail and online stores, and direct sales force; and third-party cellular network carriers and resellers. The company was formerly known as Apple Computer, Inc. and changed its name to Apple Inc. in January 2007. Apple Inc. was founded in 1976 and is headquartered in Cupertino, California.
