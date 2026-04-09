@@ -66,11 +66,22 @@ def main() -> None:
             section = _extract_section(chunk)
             source_type = chunk.get("source_type", "UNKNOWN")
             chunk_id = chunk.get("chunk_id", f"chunk_{idx}")
+            selection_debug = chunk.get("selection_debug", {})
 
             print(
                 f"Chunk {idx} | ID: {chunk_id} | Source: {source_type} | "
                 f"Section: {section} | Len: {len(text)}"
             )
+            if selection_debug:
+                debug_bucket = selection_debug.get("section_bucket", "UNKNOWN")
+                debug_rank = selection_debug.get("section_rank", "?")
+                debug_score = selection_debug.get("adjusted_score", "?")
+                debug_reasons = "; ".join(selection_debug.get("reasons", []))
+                print(
+                    f"Selection Debug | Bucket: {debug_bucket} | "
+                    f"Rank in Section: {debug_rank} | Adjusted Score: {debug_score}"
+                )
+                print(f"Reasons: {debug_reasons}")
             print(_preview_text(text, 300))
             print("-" * 40)
 

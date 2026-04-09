@@ -26,6 +26,7 @@ UNKNOWN_SECTION = "UNKNOWN"
 
 SECTION_LABELS = {RISK_SECTION, MDA_SECTION}
 TOP_PER_SECTION = 2
+MIN_CHUNK_TEXT_LEN = 120
 
 ITEM_1A_RE = re.compile(r"\bitem\s+1a\b", re.IGNORECASE)
 ITEM_2_RE = re.compile(
@@ -33,6 +34,20 @@ ITEM_2_RE = re.compile(
     re.IGNORECASE
 )
 LABEL_PATTERN = re.compile(r"\b(bullish|neutral|bearish)\b", re.IGNORECASE)
+
+MDA_POSITIVE_SIGNAL_RE = re.compile(
+    r"\b(revenue|gross margin|operating income|net income|earnings|guidance|outlook|"
+    r"demand|data center|gaming|automotive|cash flow|results of operations|"
+    r"financial condition|liquidity|capital resources)\b",
+    re.IGNORECASE,
+)
+
+BOILERPLATE_RE = re.compile(
+    r"\b(forward-looking statements|safe harbor|controls and procedures|"
+    r"disclosure controls|legal proceedings|quantitative and qualitative disclosures"
+    r" about market risk)\b",
+    re.IGNORECASE,
+)
 
 
 def build_classification_prompt(ticker: str, filing: Dict) -> str:
@@ -256,24 +271,101 @@ def _chunk_score(chunk: Dict) -> float:
     return 0.0
 
 
+def _chunk_text(chunk: Dict) -> str:
+    text = chunk.get("text")
+    if isinstance(text, str):
+        return text
+    return ""
+
+
+def _is_boilerplate_chunk(text: str) -> bool:
+    return bool(BOILERPLATE_RE.search(text or ""))
+
+
+def _section_adjusted_score_details(chunk: Dict, bucket: str) -> Tuple[float, List[str]]:
+    text = _chunk_text(chunk)
+    if not text:
+        return float("-inf"), ["empty_text_excluded"]
+
+    base_score = _chunk_score(chunk)
+    score = base_score
+    reasons: List[str] = [f"base_score={base_score:.4f}"]
+
+    # Prefer substantial narrative chunks; tiny fragments are usually split artifacts.
+    if len(text) < MIN_CHUNK_TEXT_LEN:
+        score -= 1.5
+        reasons.append("short_text_penalty=-1.5")
+
+    if _is_boilerplate_chunk(text):
+        score -= 2.5
+        reasons.append("boilerplate_penalty=-2.5")
+
+    if bucket == MDA_SECTION and MDA_POSITIVE_SIGNAL_RE.search(text):
+        score += 0.8
+        reasons.append("mda_signal_boost=+0.8")
+
+    reasons.append(f"adjusted_score={score:.4f}")
+
+    return score, reasons
+
+
+def _section_adjusted_score(chunk: Dict, bucket: str) -> float:
+    score, _ = _section_adjusted_score_details(chunk, bucket)
+    return score
+
+
+def _annotate_chunk_debug(
+    chunk: Dict,
+    bucket: str,
+    section_rank: int,
+    score: float,
+    reasons: List[str],
+) -> Dict:
+    annotated = dict(chunk)
+    annotated["selection_debug"] = {
+        "section_bucket": bucket,
+        "section_rank": section_rank,
+        "adjusted_score": round(score, 4),
+        "reasons": reasons,
+    }
+    return annotated
+
+    return score
+
+
 def _select_top_chunks_by_section(chunks: List[Dict], top_per_section: int = TOP_PER_SECTION) -> List[Dict]:
-    risk_chunks: List[Dict] = []
-    mda_chunks: List[Dict] = []
+    risk_candidates: List[Dict] = []
+    mda_candidates: List[Dict] = []
 
-    # Re-rank within each section by score descending.
-    ranked = sorted(chunks, key=_chunk_score, reverse=True)
-
-    for chunk in ranked:
+    for chunk in chunks:
         section_name = _normalize_section_name(chunk)
         bucket = _section_bucket_from_name(section_name)
+        if bucket == RISK_SECTION:
+            risk_candidates.append(chunk)
+        elif bucket == MDA_SECTION:
+            mda_candidates.append(chunk)
 
-        if bucket == RISK_SECTION and len(risk_chunks) < top_per_section:
-            risk_chunks.append(chunk)
-        elif bucket == MDA_SECTION and len(mda_chunks) < top_per_section:
-            mda_chunks.append(chunk)
+    # Rank each section independently to guarantee top-N quality per target section.
+    risk_scored = [
+        (chunk, *_section_adjusted_score_details(chunk, RISK_SECTION))
+        for chunk in risk_candidates
+    ]
+    mda_scored = [
+        (chunk, *_section_adjusted_score_details(chunk, MDA_SECTION))
+        for chunk in mda_candidates
+    ]
 
-        if len(risk_chunks) >= top_per_section and len(mda_chunks) >= top_per_section:
-            break
+    risk_ranked = sorted(risk_scored, key=lambda item: item[1], reverse=True)
+    mda_ranked = sorted(mda_scored, key=lambda item: item[1], reverse=True)
+
+    risk_chunks = [
+        _annotate_chunk_debug(chunk, RISK_SECTION, idx, score, reasons)
+        for idx, (chunk, score, reasons) in enumerate(risk_ranked[:top_per_section], start=1)
+    ]
+    mda_chunks = [
+        _annotate_chunk_debug(chunk, MDA_SECTION, idx, score, reasons)
+        for idx, (chunk, score, reasons) in enumerate(mda_ranked[:top_per_section], start=1)
+    ]
 
     return risk_chunks + mda_chunks
 
