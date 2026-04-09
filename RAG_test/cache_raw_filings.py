@@ -5,10 +5,10 @@ import argparse
 from datetime import datetime, timezone
 
 from RAG_test.common import (
-    COMPANIES,
     ensure_data_dirs,
     ensure_repo_on_path,
     raw_filings_path,
+    resolve_companies,
     stub_optional_market_data_dependencies,
     write_json,
 )
@@ -29,6 +29,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=1,
         help="Number of most recent 10-Q filings to cache per company. Recommended: 1 for the first benchmark pass.",
     )
+    parser.add_argument(
+        "--tickers",
+        nargs="+",
+        help="Optional subset of benchmark tickers to cache, e.g. GOOG META NVDA TSLA.",
+    )
     return parser
 
 
@@ -36,8 +41,9 @@ def main() -> None:
     args = build_parser().parse_args()
     ensure_data_dirs()
     agent = YahooFinanceAgent()
+    companies = resolve_companies(args.tickers)
 
-    for company in COMPANIES:
+    for company in companies:
         ticker = company["ticker"]
         payload = agent.get_recent_10q_filings(
             ticker=ticker,

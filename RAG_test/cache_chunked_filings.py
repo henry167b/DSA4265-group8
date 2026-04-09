@@ -5,12 +5,12 @@ import argparse
 from datetime import datetime, timezone
 
 from RAG_test.common import (
-    COMPANIES,
     chunked_filings_path,
     ensure_data_dirs,
     ensure_repo_on_path,
     load_json,
     raw_filings_path,
+    resolve_companies,
     stub_optional_market_data_dependencies,
     write_json,
 )
@@ -29,14 +29,20 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--prose-chunk-overlap", type=int, default=100)
     parser.add_argument("--table-window", type=int, default=10)
     parser.add_argument("--table-overlap", type=int, default=2)
+    parser.add_argument(
+        "--tickers",
+        nargs="+",
+        help="Optional subset of benchmark tickers to chunk, e.g. GOOG META NVDA TSLA.",
+    )
     return parser
 
 
 def main() -> None:
     args = build_parser().parse_args()
     ensure_data_dirs()
+    companies = resolve_companies(args.tickers)
 
-    for company in COMPANIES:
+    for company in companies:
         ticker = company["ticker"]
         source_path = raw_filings_path(ticker)
         if not source_path.exists():

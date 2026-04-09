@@ -1,21 +1,29 @@
 # RAG Test Workflow
 
-Recommendation: start with the `1` most recent Apple 10-Q filing.
+The benchmark workflow now supports the shared five-company set:
+- `AAPL`
+- `GOOG`
+- `META`
+- `NVDA`
+- `TSLA`
 
-Why:
-- It keeps the benchmark easier to debug.
-- It reduces retrieval ambiguity while you are iterating on prose preprocessing and chunking.
-- It makes answer failures easier to attribute to retrieval vs generation.
-
-Once the single-filing benchmark is stable, you can scale back out later if needed.
+Recommendation:
+- Use the default scripts to cache and chunk all five benchmark companies.
+- Use `--tickers` when you want a smaller debug pass on one or more names.
 
 Suggested workflow:
 
-1. Cache the raw filing locally:
+1. Cache the raw filings locally:
    `PYTHONPATH=. python RAG_test/cache_raw_filings.py --num-filings 1`
 
-2. Chunk the cached filing locally:
+   For a smaller pass:
+   `PYTHONPATH=. python RAG_test/cache_raw_filings.py --num-filings 1 --tickers AAPL`
+
+2. Chunk the cached filings locally:
    `PYTHONPATH=. python RAG_test/cache_chunked_filings.py`
+
+   For a smaller pass:
+   `PYTHONPATH=. python RAG_test/cache_chunked_filings.py --tickers AAPL`
 
 3. Fill in `RAG_test/benchmark_dataset.json` with:
    - `filing_date`
@@ -40,3 +48,4 @@ Notes:
 - Hybrid retrieval is now built in: dense embeddings + BM25 + reciprocal-rank fusion.
 - Cross-encoder reranking turns on automatically when `sentence-transformers` is installed, unless disabled.
 - BERTScore fields are added to the report automatically when `bert-score` is installed.
+- `run_rag_evaluation.py` will evaluate every benchmark example in `RAG_test/benchmark_dataset.json`, so once the chunk cache exists for all five benchmark tickers it will score the full multi-company set.
