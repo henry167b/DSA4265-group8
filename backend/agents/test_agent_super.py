@@ -21,6 +21,7 @@ filing_rag_service = FilingRAGService()
 sentiment_agent = SentimentEmbeddingProvider()
 
 
+
 # ── Tool 1: Stock data + formatted output ──────────────────────────────────
 class StockDataInput(BaseModel):
     ticker: str
@@ -109,19 +110,8 @@ def answer_10q_question(ticker: str, question: str) -> str:
             include_document_html=True,
         )
 
-        #print("\n=== DEBUG: filings_payload ===")
-        #print(type(filings_payload))
-        #print(filings_payload)
-
         rag.index_from_prepared_filings(filings_payload)
-
-        #print("\n=== DEBUG: indexing completed ===")
-
         result = rag.answer(question)
-
-        #print("\n=== DEBUG: rag.answer result ===")
-        #print(type(result))
-        #print(result)
 
         return result.get("answer", "Could not generate answer.")
 
@@ -157,8 +147,7 @@ def analyze_quarterly_sentiment(ticker: str, num_quarters: int = 4) -> str:
 # tool for agent 
 tools = [
     get_stock_data,
-    #get_company_overview,
-    #get_financial_ratios,
+    get_company_overview,
     get_sec_filings,
     get_financial_facts,
     get_complete_analysis_data,
@@ -193,19 +182,8 @@ def build_agent(model: str = "gpt-5.4"):
         - Use the 10-Q RAG tool for detailed, text-based questions about filings (e.g., risks, revenue drivers, liquidity).
         - The RAG tool operates on one company at a time and retrieves information from recent filings.
         - Do NOT use the RAG tool for cross-company comparisons.
-        - You MUST call the 10-Q RAG tool when:
-        - identifying key risks
-        - discussing revenue drivers
-        - analyzing liquidity or financial condition
-        - referencing recent company developments
-        - Do NOT rely on general knowledge for risks or disclosures if the RAG tool is available.
-        - If the RAG tool returns no usable information:
-        - explicitly state: "No relevant information was retrieved from the latest 10-Q filing."
-        - do NOT fabricate or substitute generic risks.
-        - When using RAG output:
-        - prioritize filing-derived insights over generic assumptions
-        - reflect the specificity of disclosures (e.g., geography, segments, wording)
-        - At least ONE RAG call is REQUIRED for any full investment analysis task.
+        - Prefer other tools (financial ratios, stock data) for quantitative or structured data.
+        - Avoid repeated RAG calls unless the question requires deeper analysis of filings.
 
         STYLE
         - Write in a formal, analytical, professional tone.
@@ -296,7 +274,7 @@ def _extract_agent_output(result) -> str:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-
+# build supervisor for agent output review and revision
 
 def build_supervised_runner(
     agent_model: str = "gpt-5.4",
@@ -315,16 +293,18 @@ def run_agent(
     query: str,
     supervise: bool = False,
     supervision_notes: str = """
-    Review and revise the draft so that it:
-    - contains no conversational or chatbot-style language
-    - contains no follow-up suggestions or offers of additional help
-    - removes phrases such as "if you want", "I can also", "let me know", and "would you like"
-    - reads like a professional institutional equity research note
-    - is direct, balanced, and free of unsupported claims
-    - ends cleanly after the conclusion
+    Review the draft as a senior equity research analyst.
 
-    If needed, rewrite the response to enforce institutional tone and concision.
-    """,
+    Revise it so that it:
+    - directly answers the user's task
+    - removes unsupported or weakly supported claims
+    - ensures the conclusion is consistent with the evidence presented
+    - sharpens the relationship between financial performance, valuation, and risks
+    - preserves uncertainty where evidence is incomplete
+    - uses a professional institutional tone
+    - contains no chatbot-style language or follow-up offers
+    - ends cleanly after the conclusion
+    """
 ):
     if not supervise:
         return _invoke_agent(query)
@@ -346,12 +326,13 @@ def run_agent_for_ticker(ticker: str, task: str, supervise: bool = False):
 
 # ──────────────────────────────────────────────────────────────────────────────
 
-def make_report_filename(ticker: str, report_type: str = "analysis") -> str:
-   
+def make_report_filename(ticker: str, report_type: str = "analysis", supervise: bool = False) -> str:
     safe_ticker = re.sub(r"[^A-Za-z0-9_-]", "", ticker.upper())
     date_str = datetime.now().strftime("%Y-%m-%d")
-    
-    return f"{safe_ticker}_Investment_Analysis_{date_str}.md"
+
+    mode = "supervised" if supervise else "unsupervised"
+
+    return f"{safe_ticker}_{report_type}_{mode}_{date_str}.md"
     
 
 
@@ -360,15 +341,22 @@ if __name__ == "__main__":
     ticker = "AAPL"
     task = "Give me a full analysis and flag any risks from the latest 10-Q"
 
-    result = run_agent_for_ticker(ticker, task)
+    # Set supervise=True to enable output review and revision by the supervisor agent
+    supervise = False
 
-    output = _extract_agent_output(result)
+    result = run_agent_for_ticker(ticker, task, supervise=supervise)
 
     supervisor_info = {}
-    if isinstance(result, dict):
-        supervisor_info = result.get("supervisor", {})
 
-    file_path = make_report_filename(ticker, report_type="analysis")
+    if supervise:
+        output = result.get("final_output", "") if isinstance(result, dict) else str(result)
+        if isinstance(result, dict):
+            supervisor_info = result.get("supervisor", {})
+    else:
+        output = _extract_agent_output(result)
+
+    file_path = make_report_filename(ticker, report_type="analysis", supervise=supervise)
+    file_path = f"evaluation/{file_path}"
 
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(output)
@@ -385,7 +373,6 @@ if __name__ == "__main__":
     print(f"\nSaved to: {file_path}")
 
 
-
-
-    # PYTHONPATH=. /usr/local/bin/python3 -m backend.agents.test_agent
+    # to run:
+    # PYTHONPATH=. /usr/local/bin/python3 -m backend.agents.test_agent_super
     

@@ -12,6 +12,15 @@ from .supervisor_framework import OutputSupervisor, SupervisedAgentRunner
 
 from datetime import datetime
 import re
+import logging
+
+logging.basicConfig(
+    filename="evaluation/debug.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -19,6 +28,7 @@ import re
 yf_agent = YahooFinanceAgent(user_email="e0968923@u.nus.edu")
 filing_rag_service = FilingRAGService()
 sentiment_agent = SentimentEmbeddingProvider()
+
 
 
 # ── Tool 1: Stock data + formatted output ──────────────────────────────────
@@ -40,7 +50,7 @@ class CompanyOverviewInput(BaseModel):
 def get_company_overview(ticker: str) -> str:
     """Fetch a brief company overview for the given ticker."""
     data = yf_agent.get_company_overview(ticker)
-    return yf_agent.format_overview_for_next_agent(data)
+    return yf_agent.format_company_info(data)
 
 class FinancialRatiosInput(BaseModel):
     ticker: str
@@ -57,14 +67,14 @@ class CompleteAnalysisInput(BaseModel):
 @tool(args_schema=CompleteAnalysisInput)
 def get_complete_analysis_data(ticker: str) -> str:
     """Run a full analysis combining Yahoo Finance market data + SEC filings + XBRL financial facts."""
-
     data = yf_agent.get_complete_analysis_data(ticker)
 
     yf_formatted = yf_agent.format_for_next_agent(data)
+    company_formatted = yf_agent.format_company_info(data.get("company_info", {}))
     sec_formatted = yf_agent.format_sec_data_for_next_agent(data.get("sec_filings", {}))
     facts_formatted = yf_agent.format_financial_facts_for_next_agent(data.get("financial_facts", {}))
 
-    return f"{yf_formatted}\n\n{sec_formatted}\n\n{facts_formatted}"
+    return f"{company_formatted}\n\n{yf_formatted}\n\n{sec_formatted}\n\n{facts_formatted}"
 
 
 # ── Tool 2: SEC 10-Q filings ───────────────────────────────────────────────
@@ -109,19 +119,8 @@ def answer_10q_question(ticker: str, question: str) -> str:
             include_document_html=True,
         )
 
-        #print("\n=== DEBUG: filings_payload ===")
-        #print(type(filings_payload))
-        #print(filings_payload)
-
         rag.index_from_prepared_filings(filings_payload)
-
-        #print("\n=== DEBUG: indexing completed ===")
-
         result = rag.answer(question)
-
-        #print("\n=== DEBUG: rag.answer result ===")
-        #print(type(result))
-        #print(result)
 
         return result.get("answer", "Could not generate answer.")
 
@@ -157,8 +156,7 @@ def analyze_quarterly_sentiment(ticker: str, num_quarters: int = 4) -> str:
 # tool for agent 
 tools = [
     get_stock_data,
-    #get_company_overview,
-    #get_financial_ratios,
+    get_company_overview,
     get_sec_filings,
     get_financial_facts,
     get_complete_analysis_data,
@@ -193,19 +191,8 @@ def build_agent(model: str = "gpt-5.4"):
         - Use the 10-Q RAG tool for detailed, text-based questions about filings (e.g., risks, revenue drivers, liquidity).
         - The RAG tool operates on one company at a time and retrieves information from recent filings.
         - Do NOT use the RAG tool for cross-company comparisons.
-        - You MUST call the 10-Q RAG tool when:
-        - identifying key risks
-        - discussing revenue drivers
-        - analyzing liquidity or financial condition
-        - referencing recent company developments
-        - Do NOT rely on general knowledge for risks or disclosures if the RAG tool is available.
-        - If the RAG tool returns no usable information:
-        - explicitly state: "No relevant information was retrieved from the latest 10-Q filing."
-        - do NOT fabricate or substitute generic risks.
-        - When using RAG output:
-        - prioritize filing-derived insights over generic assumptions
-        - reflect the specificity of disclosures (e.g., geography, segments, wording)
-        - At least ONE RAG call is REQUIRED for any full investment analysis task.
+        - Prefer other tools (financial ratios, stock data) for quantitative or structured data.
+        - Avoid repeated RAG calls unless the question requires deeper analysis of filings.
 
         STYLE
         - Write in a formal, analytical, professional tone.
@@ -275,11 +262,20 @@ def build_agent(model: str = "gpt-5.4"):
 
 def _invoke_agent(query: str, model: str = "gpt-5.4"):
     agent = build_agent(model=model)
-    return agent.invoke({
+    result = agent.invoke({
         "messages": [
             {"role": "user", "content": query}
         ]
     })
+
+    logger.info("AGENT RESULT: %s", result)
+
+    if isinstance(result, dict):
+        messages = result.get("messages", [])
+        for i, msg in enumerate(messages):
+            logger.info("MESSAGE %d TYPE=%s CONTENT=%s", i, msg.__class__.__name__, msg)
+
+    return result
 
 
 def _extract_agent_output(result) -> str:
@@ -291,12 +287,48 @@ def _extract_agent_output(result) -> str:
             return str(content)
         if isinstance(last_message, dict):
             return str(last_message.get("content", ""))
-    return str(result)
+    return str(result) 
+
+# add trace tools
+def extract_tool_trace(raw_result) -> str:
+    if not isinstance(raw_result, dict):
+        return ""
+
+    messages = raw_result.get("messages", [])
+    if not isinstance(messages, list):
+        return ""
+
+    lines = []
+
+    for msg in messages:
+        tool_calls = getattr(msg, "tool_calls", None)
+        if tool_calls:
+            for tc in tool_calls:
+                name = tc.get("name", "unknown_tool")
+                args = tc.get("args", {})
+                lines.append(f"TOOL CALL: {name} | ARGS: {args}")
+
+        if msg.__class__.__name__ == "ToolMessage":
+            content = getattr(msg, "content", "")
+            lines.append(f"TOOL OUTPUT: {content}")
+
+        if isinstance(msg, dict):
+            tool_calls = msg.get("tool_calls")
+            if tool_calls:
+                for tc in tool_calls:
+                    name = tc.get("name", "unknown_tool")
+                    args = tc.get("args", {})
+                    lines.append(f"TOOL CALL: {name} | ARGS: {args}")
+
+            if msg.get("type") == "tool":
+                lines.append(f"TOOL OUTPUT: {msg.get('content', '')}")
+
+    return "\n\n".join(lines)
 
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-
+# build supervisor for agent output review and revision
 
 def build_supervised_runner(
     agent_model: str = "gpt-5.4",
@@ -315,16 +347,18 @@ def run_agent(
     query: str,
     supervise: bool = False,
     supervision_notes: str = """
-    Review and revise the draft so that it:
-    - contains no conversational or chatbot-style language
-    - contains no follow-up suggestions or offers of additional help
-    - removes phrases such as "if you want", "I can also", "let me know", and "would you like"
-    - reads like a professional institutional equity research note
-    - is direct, balanced, and free of unsupported claims
-    - ends cleanly after the conclusion
+    Review the draft as a senior equity research analyst.
 
-    If needed, rewrite the response to enforce institutional tone and concision.
-    """,
+    Revise it so that it:
+    - directly answers the user's task
+    - removes unsupported or weakly supported claims
+    - ensures the conclusion is consistent with the evidence presented
+    - sharpens the relationship between financial performance, valuation, and risks
+    - preserves uncertainty where evidence is incomplete
+    - uses a professional institutional tone
+    - contains no chatbot-style language or follow-up offers
+    - ends cleanly after the conclusion
+    """
 ):
     if not supervise:
         return _invoke_agent(query)
@@ -346,32 +380,48 @@ def run_agent_for_ticker(ticker: str, task: str, supervise: bool = False):
 
 # ──────────────────────────────────────────────────────────────────────────────
 
-def make_report_filename(ticker: str, report_type: str = "analysis") -> str:
-   
+def make_report_filename(ticker: str, report_type: str = "analysis", supervise: bool = False) -> str:
     safe_ticker = re.sub(r"[^A-Za-z0-9_-]", "", ticker.upper())
     date_str = datetime.now().strftime("%Y-%m-%d")
-    
-    return f"{safe_ticker}_Investment_Analysis_{date_str}.md"
+
+    mode = "supervised" if supervise else "unsupervised"
+
+    return f"{safe_ticker}_{report_type}_{mode}_{date_str}.md"
     
 
-
+# Example usage:
 
 if __name__ == "__main__":
     ticker = "AAPL"
     task = "Give me a full analysis and flag any risks from the latest 10-Q"
+    supervise = True
 
-    result = run_agent_for_ticker(ticker, task)
-
-    output = _extract_agent_output(result)
+    result = run_agent_for_ticker(ticker, task, supervise=supervise)
 
     supervisor_info = {}
-    if isinstance(result, dict):
-        supervisor_info = result.get("supervisor", {})
 
-    file_path = make_report_filename(ticker, report_type="analysis")
+    if supervise and isinstance(result, dict):
+        output = result.get("final_output", "")
+        supervisor_info = result.get("supervisor", {})
+        raw_for_trace = result.get("raw_result", {})
+    else:
+        output = _extract_agent_output(result)
+        raw_for_trace = result
+
+    tool_trace = extract_tool_trace(raw_for_trace)
+
+    logger.info("===== TOOL TRACE =====\n%s", tool_trace)
+    print("\n===== TOOL TRACE =====\n")
+    print(tool_trace)
+
+    file_path = f"evaluation/{make_report_filename(ticker, report_type='analysis', supervise=supervise)}"
+    trace_path = f"evaluation/{ticker}_tool_trace.txt"
 
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(output)
+
+    with open(trace_path, "w", encoding="utf-8") as f:
+        f.write(tool_trace)
 
     print("\n===== RAW RESULT TYPE =====\n")
     print(type(result))
@@ -382,10 +432,9 @@ if __name__ == "__main__":
     print("\n===== SUPERVISOR REVIEW =====\n")
     print(supervisor_info)
 
-    print(f"\nSaved to: {file_path}")
+    print(f"\nSaved report to: {file_path}")
+    print(f"Saved tool trace to: {trace_path}")
 
-
-
-
-    # PYTHONPATH=. /usr/local/bin/python3 -m backend.agents.test_agent
+    # to run:
+    # PYTHONPATH=. /usr/local/bin/python3 -m backend.agents.test_agent_super_final
     
