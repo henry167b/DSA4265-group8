@@ -8,6 +8,8 @@ from typing import Dict, Optional, List, Any
 import logging
 import warnings
 
+from yfinance import ticker
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -343,22 +345,25 @@ class YahooFinanceAgent:
             logger.error(f"Unexpected error converting ticker to CIK: {e}")
             return None
 
+
+
+# get recent 10-Q filings using SEC Submissions API, with option to include HTML content of filings
     def get_recent_10q_filings(
         self,
         ticker: str,
         num_quarters: int = 1,
-        include_document_html: bool = False
+        include_document_html: bool = True
     ) -> Dict:
         """
         Fetch recent 10-Q filings for a company using SEC Submissions API.
 
         Args:
             ticker: Stock ticker symbol
-            num_quarters: Number of quarters to retrieve (default 1)
+            num_quarters: Number of quarters to retrieve
             include_document_html: Whether to download and attach the filing HTML
 
         Returns:
-            Dictionary with filing metadata and URLs for the 10-Q documents
+            Dictionary with filing metadata and optional HTML content
         """
         cik = self.ticker_to_cik(ticker)
         if not cik:
@@ -367,7 +372,6 @@ class YahooFinanceAgent:
         try:
             time.sleep(0.5)
 
-            # Submissions API endpoint
             url = f"https://data.sec.gov/submissions/CIK{cik}.json"
             logger.info(f"SEC Submissions API URL being requested: {url}")
             response = requests.get(url, headers=self.sec_headers, timeout=15)
@@ -375,35 +379,41 @@ class YahooFinanceAgent:
 
             data = response.json()
 
-            filings = data.get('filings', {}).get('recent', {})
+            filings = data.get("filings", {}).get("recent", {})
             if not filings:
                 return {"error": "No filings found", "filings": [], "success": False}
 
-            # Filter for 10-Q filings
             ten_q_filings = []
-            form_types = filings.get('form', [])
-            accession_numbers = filings.get('accessionNumber', [])
-            filing_dates = filings.get('filingDate', [])
-            primary_documents = filings.get('primaryDocument', [])
+            form_types = filings.get("form", [])
+            accession_numbers = filings.get("accessionNumber", [])
+            filing_dates = filings.get("filingDate", [])
+            primary_documents = filings.get("primaryDocument", [])
 
-            company_name = data.get('name', self.company_name_cache.get(ticker, 'Unknown'))
+            company_name = data.get("name", self.company_name_cache.get(ticker, "Unknown"))
             if ticker not in self.company_name_cache:
                 self.company_name_cache[ticker] = company_name
 
             for i, form in enumerate(form_types):
-                if form == '10-Q' and len(ten_q_filings) < num_quarters:
-                    accession = accession_numbers[i].replace('-', '')
-
-                    # Construct URL for the filing document
+                if form == "10-Q" and len(ten_q_filings) < num_quarters:
+                    accession = accession_numbers[i].replace("-", "")
                     document_url = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession}/{primary_documents[i]}"
 
-                    ten_q_filings.append({
+                    filing_entry = {
                         "filing_date": filing_dates[i],
                         "accession_number": accession_numbers[i],
                         "form_type": "10-Q",
                         "document_url": document_url,
                         "quarter": self._get_quarter_from_date(filing_dates[i])
-                    })
+                    }
+
+                    if include_document_html:
+                        html = self.get_full_10q_document(document_url)
+                        if html:
+                            filing_entry["document_html"] = html
+                        else:
+                            filing_entry["html"] = None
+
+                    ten_q_filings.append(filing_entry)
 
             result = {
                 "ticker": ticker,
@@ -419,6 +429,7 @@ class YahooFinanceAgent:
         except Exception as e:
             logger.error(f"Error fetching 10-Q filings for {ticker}: {e}")
             return {"error": str(e), "filings": [], "success": False}
+
 
     def get_financial_facts(self, ticker: str) -> Dict:
         """
