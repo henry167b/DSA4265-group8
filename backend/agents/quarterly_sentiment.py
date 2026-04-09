@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Tuple
 import pandas as pd
 import yfinance as yf
 
-from .yahoo_finance_agent import YahooFinanceAgent
+from .financial_data_agent import YahooFinanceAgent
 from .retrieval_pipeline import (
     FilingRetrievalPipeline,
     OpenAIChatGenerationProvider,
