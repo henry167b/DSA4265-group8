@@ -25,9 +25,13 @@ MDA_SECTION = "MDA"
 UNKNOWN_SECTION = "UNKNOWN"
 
 SECTION_LABELS = {RISK_SECTION, MDA_SECTION}
+TOP_PER_SECTION = 2
 
 ITEM_1A_RE = re.compile(r"\bitem\s+1a\b", re.IGNORECASE)
-ITEM_2_RE = re.compile(r"\bitem\s+2\b", re.IGNORECASE)
+ITEM_2_RE = re.compile(
+    r"\bitem\s+2\b|\bmanagement'?s discussion\b|\bmanagement'?s discussion and analysis\b",
+    re.IGNORECASE
+)
 LABEL_PATTERN = re.compile(r"\b(bullish|neutral|bearish)\b", re.IGNORECASE)
 
 
@@ -180,7 +184,7 @@ def _detect_section_from_chunk_text(chunk_text: str) -> str:
 
     For 10-Q:
       Item 1A -> Risk Factors
-      Item 2  -> Management's Discussion and Analysis
+      Item 2 / Management's Discussion -> Management's Discussion and Analysis (MD&A)
     """
     if not chunk_text:
         return UNKNOWN_SECTION
@@ -196,46 +200,128 @@ def _detect_section_from_chunk_text(chunk_text: str) -> str:
     return UNKNOWN_SECTION
 
 
+def _canonicalize_section_name(section_name: str) -> str:
+    if not section_name:
+        return ""
+    normalized = section_name.strip().lower()
+    normalized = normalized.replace("’", "'").replace("`", "'")
+    normalized = normalized.replace("&", " and ")
+    normalized = re.sub(r"\s+", " ", normalized)
+    return normalized
+
+
+def _normalize_section_name(chunk: Dict) -> str:
+    return (
+        chunk.get("section_name")
+        or chunk.get("section")
+        or chunk.get("metadata", {}).get("section_name")
+        or ""
+    ).strip()
+
+
+def _is_risk_factor_section_name(section_name: str) -> bool:
+    s = _canonicalize_section_name(section_name)
+    return (
+        "risk factor" in s
+        or "risk factors" in s
+        or "item 1a" in s
+    )
+
+
+def _is_mda_section_name(section_name: str) -> bool:
+    s = _canonicalize_section_name(section_name)
+    return (
+        "management's discussion and analysis" in s
+        or "managements discussion and analysis" in s
+        or "management discussion and analysis" in s
+        or "md&a" in s
+        or "md and a" in s
+        or "item 2" in s
+    )
+
+
+def _section_bucket_from_name(section_name: str) -> str:
+    if _is_risk_factor_section_name(section_name):
+        return RISK_SECTION
+    if _is_mda_section_name(section_name):
+        return MDA_SECTION
+    return UNKNOWN_SECTION
+
+
+def _chunk_score(chunk: Dict) -> float:
+    for key in ("score", "rerank_score", "hybrid_score", "dense_score", "sparse_score"):
+        value = chunk.get(key)
+        if isinstance(value, (int, float)):
+            return float(value)
+    return 0.0
+
+
+def _select_top_chunks_by_section(chunks: List[Dict], top_per_section: int = TOP_PER_SECTION) -> List[Dict]:
+    risk_chunks: List[Dict] = []
+    mda_chunks: List[Dict] = []
+
+    # Re-rank within each section by score descending.
+    ranked = sorted(chunks, key=_chunk_score, reverse=True)
+
+    for chunk in ranked:
+        section_name = _normalize_section_name(chunk)
+        bucket = _section_bucket_from_name(section_name)
+
+        if bucket == RISK_SECTION and len(risk_chunks) < top_per_section:
+            risk_chunks.append(chunk)
+        elif bucket == MDA_SECTION and len(mda_chunks) < top_per_section:
+            mda_chunks.append(chunk)
+
+        if len(risk_chunks) >= top_per_section and len(mda_chunks) >= top_per_section:
+            break
+
+    return risk_chunks + mda_chunks
+
+
 def _filter_filing_to_relevant_prose_chunks(filing: Dict) -> Tuple[Dict, List[str]]:
     """
-    Keep only the prose chunks that belong to MD&A or Risk Factors.
-
-    This is the pre-filtering step that reduces embedding and LLM cost.
+    Keep only prose chunks where section_name indicates:
+      - Risk Factors
+      - Management's Discussion and Analysis (MD&A)
     """
-    prepared_chunk_data = filing.get("prepared_chunk_data", {})
-    prose_chunks = prepared_chunk_data.get("prose_chunks", [])
+    prepared_chunk_data = filing.get("prepared_chunk_data", {}) or {}
+    prose_chunk_records = prepared_chunk_data.get("prose_chunk_records", []) or []
 
-    filtered_prose_chunks: List[str] = []
-    selected_sections = set()
+    filtered_records: List[Dict] = []
+    has_risk = False
+    has_mda = False
 
-    current_section = UNKNOWN_SECTION
+    for record in prose_chunk_records:
+        section_name = _normalize_section_name(record)
+        if not section_name:
+            continue  # strict: require section_name to exist
 
-    for chunk_text in prose_chunks:
-        detected_section = _detect_section_from_chunk_text(chunk_text)
+        bucket = _section_bucket_from_name(section_name)
+        if bucket == RISK_SECTION:
+            filtered_records.append(record)
+            has_risk = True
+        elif bucket == MDA_SECTION:
+            filtered_records.append(record)
+            has_mda = True
 
-        if detected_section in SECTION_LABELS:
-            current_section = detected_section
-
-        if current_section in SECTION_LABELS:
-            filtered_prose_chunks.append(chunk_text)
-            selected_sections.add(current_section)
-
-    if not filtered_prose_chunks:
-        filtered_prose_chunks = list(prose_chunks)
-        if prose_chunks:
-            selected_sections.add(UNKNOWN_SECTION)
+    selected_sections: List[str] = []
+    if has_risk:
+        selected_sections.append(RISK_SECTION)
+    if has_mda:
+        selected_sections.append(MDA_SECTION)
 
     filtered_prepared_chunk_data = dict(prepared_chunk_data)
-    filtered_prepared_chunk_data["prose_chunks"] = filtered_prose_chunks
+    filtered_prepared_chunk_data["prose_chunk_records"] = filtered_records
+    filtered_prepared_chunk_data["prose_chunks"] = []
+    filtered_prepared_chunk_data["table_chunk_records"] = []
     filtered_prepared_chunk_data["table_chunks"] = []
 
     filtered_filing = dict(filing)
     filtered_filing["prepared_chunk_data"] = filtered_prepared_chunk_data
-    filtered_filing["selected_sections"] = sorted(selected_sections)
+    filtered_filing["selected_sections"] = selected_sections
     filtered_filing["pre_filtered"] = True
 
-    return filtered_filing, sorted(selected_sections)
-
+    return filtered_filing, selected_sections
 
 class QuarterlySentimentAnalyzer:
     """
@@ -290,15 +376,18 @@ class QuarterlySentimentAnalyzer:
         pipeline: FilingRetrievalPipeline,
         filing: Dict,
     ) -> List[Dict]:
-        query = "management discussion and analysis risk factors financial performance outlook"
-        retrieval = pipeline.search(query=query, k=self.retrieval_k)
+        # Broad enough to rank both target sections, then section-aware top-2 selection.
+        query = (
+            "risk factors management's discussion and analysis "
+            "results of operations financial condition liquidity outlook"
+        )
+        retrieval = pipeline.search(query=query, k=max(self.retrieval_k, 16))
 
         if not retrieval.get("success"):
             return []
 
-        selected_chunks = retrieval.get("results", [])[: self.top_k]
-
-        return selected_chunks
+        candidates = retrieval.get("results", [])
+        return _select_top_chunks_by_section(candidates, top_per_section=TOP_PER_SECTION)
 
     def analyze_single_filing(self, ticker: str, filing: Dict) -> Dict:
         pipeline, selected_sections, chunk_count = self._build_pipeline_for_single_filing(

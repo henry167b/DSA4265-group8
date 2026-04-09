@@ -1,45 +1,80 @@
-# tests/test_quarterly_sentiment_integration.py
-
 import os
+import re
 import sys
 from collections import Counter
-from datetime import datetime
 
 # Make sure the project root is importable
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from backend.agents.retrieval_pipeline import OpenAIEmbeddingProvider, OpenAIChatGenerationProvider
-from backend.agents.quarterly_sentiment import QuarterlySentimentPipeline
+from backend.agents.quarterly_sentiment import QuarterlySentimentAnalyzer
+
+
+def _extract_section(chunk: dict) -> str:
+    return (
+        chunk.get("section_name")
+        or chunk.get("section")
+        or chunk.get("metadata", {}).get("section_name")
+        or "UNKNOWN"
+    )
+
+
+def _preview_text(text: str, limit: int = 300) -> str:
+    normalized = re.sub(r"\s+", " ", text or "").strip()
+    normalized = re.sub(r"-{8,}", " --- ", normalized)
+    return normalized[:limit]
 
 
 def main() -> None:
     ticker = "AAPL"
-    quarters = ["2025Q1", "2025Q2", "2025Q3", "2025Q4"]
+    num_quarters = 4  # Analyze last 4 quarters
 
-    embedding_provider = OpenAIEmbeddingProvider()
-    generation_provider = OpenAIChatGenerationProvider(model="gpt-4o-mini")
-
-    pipeline = QuarterlySentimentPipeline(
-        embedding_provider=embedding_provider,
-        generation_provider=generation_provider,
-    )
-
-    print(f"\nQuarterly sentiment analysis for {ticker}")
+    print(f"\nRunning real integration test for {ticker} (last {num_quarters} quarters)")
     print("=" * 120)
 
-    all_results = []
+    # Create analyzer with real providers
+    analyzer = QuarterlySentimentAnalyzer(
+        yahoo_agent=None,  # Use default YahooFinanceAgent
+        num_quarters=num_quarters,
+        openai_api_key=os.environ.get("OPENAI_API_KEY"),
+    )
 
-    for quarter in quarters:
-        result = pipeline.analyze_ticker_for_quarter(ticker, quarter)
-        all_results.append(result)
+    result = analyzer.analyze_ticker(ticker)
 
-        print(f"\nQuarter {quarter}:")
-        print(f"Predicted Label: {result['predicted_label']}")
-        print(f"Actual Label: {result['actual_label']}")
-        print(f"Meta: {result['meta']}")
-        print("-" * 120)
+    if not result.get("success"):
+        print(f"Error fetching filings: {result.get('error')}")
+        return
+
+    all_results = result.get("quarterly_results", [])
+
+    for q_result in all_results:
+        print(f"\nQuarter {q_result['quarter']}:")
+        print(f"Filing Date: {q_result['filing_date']}")
+        print(f"Predicted Label: {q_result['predicted_label']}")
+        print(f"Actual Label: {q_result['actual_label']}")
+        print(f"Realized % Change: {q_result['realized_next_quarter_pct_change']}")
+        print(f"Chunks Used: {q_result['chunks_used']}")
+        print(f"Selected Sections: {q_result['selected_sections']}")
+        print(f"Price Error: {q_result['price_error']}")
+        print("-" * 60)
+
+        # --- DEBUG: print filtered chunks ---
+        retrieved_chunks = q_result.get("retrieved_chunks", [])
+        for idx, chunk in enumerate(retrieved_chunks, start=1):
+            text = chunk.get("text", "")
+            section = _extract_section(chunk)
+            source_type = chunk.get("source_type", "UNKNOWN")
+            chunk_id = chunk.get("chunk_id", f"chunk_{idx}")
+
+            print(
+                f"Chunk {idx} | ID: {chunk_id} | Source: {source_type} | "
+                f"Section: {section} | Len: {len(text)}"
+            )
+            print(_preview_text(text, 300))
+            print("-" * 40)
+
+        print("=" * 120)
 
     # Summary
     labels = [r["predicted_label"] for r in all_results]
