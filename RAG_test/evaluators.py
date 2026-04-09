@@ -48,16 +48,19 @@ Oracle answer:
 Generated answer:
 {generated_answer}
 
-Judge whether the generated answer should count as correct. Be tolerant of:
+Judge whether the generated answer should count as correct. Apply a generous standard: if the generated answer contains the core fact or key insight even if it omits secondary details, count it as correct.
+
+Be tolerant of:
 - equivalent units such as millions vs billions
 - rounded values that preserve the same meaning
 - paraphrases and different wording
+- time period differences or different period labels
+- partial answers that cover the main point but miss minor details
 
-Be strict about:
-- wrong metric
-- wrong period
-- unsupported claims
-- materially wrong numbers or direction of change
+Only mark as incorrect if:
+- the answer addresses the wrong metric entirely
+- numbers or direction of change are materially wrong
+- the answer is a generic non-answer with no relevant content
 
 Respond in exactly this format:
 Correct: YES or NO
