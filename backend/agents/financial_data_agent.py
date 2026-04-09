@@ -8,7 +8,6 @@ from typing import Dict, Optional, List, Any
 import logging
 import warnings
 
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -117,53 +116,60 @@ class YahooFinanceAgent:
             logger.warning(f"Error getting current price: {e}")
             return {}
 
-    def _get_historical_data(self, ticker: str, days_back: int) -> Dict:
-        """Fetch historical price data."""
-        try:
-            end_date = datetime.now()
-            start_date = end_date - timedelta(days=days_back)
+    def _get_historical_data(self, ticker, days = 30):
+      try:
+          end_date = datetime.today()
+          start_date = end_date - timedelta(days=days)
 
-            # Suppress the FutureWarning
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                hist = yf.download(
-                    ticker,
-                    start=start_date,
-                    end=end_date,
-                    progress=False,
-                    auto_adjust=True
-                )
-                if isinstance(hist.columns, pd.MultiIndex):
-                  hist.columns = hist.columns.get_level_values(0)
+          hist = yf.download(
+              ticker,
+              start=start_date,
+              end=end_date,
+              progress=False,
+              auto_adjust=True
+          )
 
-            if hist.empty:
-                return {"error": "No historical data available", "summary": {}}
+          if isinstance(hist.columns, pd.MultiIndex):
+              hist.columns = hist.columns.get_level_values(0)
 
-            hist_data = {
-                "dates": hist.index.strftime('%Y-%m-%d').tolist() if not hist.empty else [],
-                "prices": {
-                    "open": hist['Open'].values.tolist() if 'Open' in hist.columns else [],
-                    "high": hist['High'].values.tolist() if 'High' in hist.columns else [],
-                    "low": hist['Low'].values.tolist() if 'Low' in hist.columns else [],
-                    "close": hist['Close'].values.tolist() if 'Close' in hist.columns else [],
-                    "volume": hist['Volume'].values.tolist() if 'Volume' in hist.columns else []
-                },
-                "summary": {
-                    "start_price": float(hist['Close'].iloc[0]) if not hist.empty and 'Close' in hist.columns else None,
-                    "end_price": float(hist['Close'].iloc[-1]) if not hist.empty and 'Close' in hist.columns else None,
-                    "max_price": float(hist['High'].max()) if not hist.empty and 'High' in hist.columns else None,
-                    "min_price": float(hist['Low'].min()) if not hist.empty and 'Low' in hist.columns else None,
-                    "avg_price": float(hist['Close'].mean()) if not hist.empty and 'Close' in hist.columns else None,
-                    "total_return_percent": float(((hist['Close'].iloc[-1] - hist['Close'].iloc[0]) / hist['Close'].iloc[0] * 100)) if not hist.empty and 'Close' in hist.columns and len(hist) > 1 else None,
-                    "volatility": float(hist['Close'].pct_change().std() * 100) if not hist.empty and 'Close' in hist.columns and len(hist) > 1 else None
-                }
-            }
+          # 🔥 NEW: safer check
+          if hist is None or hist.empty or "Close" not in hist:
+              return {
+                  "start_price": None,
+                  "end_price": None,
+                  "return": None,
+                  "volatility": None
+              }
 
-            return hist_data
+          close_prices = hist["Close"].dropna().values
 
-        except Exception as e:
-            logger.warning(f"Error getting historical data: {e}")
-            return {"error": str(e), "summary": {}}
+          if len(close_prices) < 2:
+              return {
+                  "start_price": None,
+                  "end_price": None,
+                  "return": None,
+                  "volatility": None
+              }
+
+          start_price = float(close_prices[0])
+          end_price = float(close_prices[-1])
+          total_return = (end_price - start_price) / start_price
+          volatility = float(np.std(close_prices) / np.mean(close_prices))
+
+          return {
+              "start_price": start_price,
+              "end_price": end_price,
+              "return": total_return,
+              "volatility": volatility
+          }
+
+      except Exception:
+          return {
+              "start_price": None,
+              "end_price": None,
+              "return": None,
+              "volatility": None
+          }
 
     def _get_key_metrics(self, stock) -> Dict:
         """Extract key financial metrics."""
@@ -352,7 +358,7 @@ class YahooFinanceAgent:
             include_document_html: Whether to download and attach the filing HTML
 
         Returns:
-            Dictionary with filing metadata, URLs, and optionally filing HTML
+            Dictionary with filing metadata and URLs for the 10-Q documents
         """
         cik = self.ticker_to_cik(ticker)
         if not cik:
@@ -361,7 +367,7 @@ class YahooFinanceAgent:
         try:
             time.sleep(0.5)
 
-            # Submissions API endpoint 
+            # Submissions API endpoint
             url = f"https://data.sec.gov/submissions/CIK{cik}.json"
             logger.info(f"SEC Submissions API URL being requested: {url}")
             response = requests.get(url, headers=self.sec_headers, timeout=15)
@@ -391,23 +397,13 @@ class YahooFinanceAgent:
                     # Construct URL for the filing document
                     document_url = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession}/{primary_documents[i]}"
 
-                    filing_record = {
+                    ten_q_filings.append({
                         "filing_date": filing_dates[i],
                         "accession_number": accession_numbers[i],
                         "form_type": "10-Q",
                         "document_url": document_url,
                         "quarter": self._get_quarter_from_date(filing_dates[i])
-                    }
-
-                    if include_document_html:
-                        document_html = self.get_full_10q_document(document_url)
-                        filing_record["document_fetch_success"] = document_html is not None
-                        filing_record["document_html"] = document_html
-                        filing_record["document_html_length"] = len(document_html) if document_html else 0
-
-                    ten_q_filings.append(filing_record)
-
-            ten_q_filings.sort(key=lambda filing: filing.get("filing_date", ""))
+                    })
 
             result = {
                 "ticker": ticker,
@@ -442,7 +438,7 @@ class YahooFinanceAgent:
         try:
             time.sleep(0.5)
 
-            # Company Facts API 
+            # Company Facts API
             url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
             logger.info(f"SEC Company Facts API URL being requested: {url}")
             response = requests.get(url, headers=self.sec_headers, timeout=15)
@@ -478,7 +474,7 @@ class YahooFinanceAgent:
                         # Sort by end date, get last 8
                         sorted_values = sorted(values, key=lambda x: x.get('end', ''), reverse=True)
                         financial_data[display_name] = sorted_values[:8]
-                        break  
+                        break
 
             # To get revenue growth rate by calculating YoY
             if 'Revenue' in financial_data:
@@ -537,42 +533,88 @@ class YahooFinanceAgent:
         except:
             return date_str
 
-    def get_complete_analysis_data(self, ticker: str) -> Dict:
-        """
-        Convenience method that combines Yahoo Finance data AND SEC filing data.
-        This is the main method to call for full analysis.
+    # ============ SEARCH API  =============
 
-        Args:
-            ticker: Stock ticker symbol
+    def search_company_info(self, query):
+        """Search API to get company description."""
+        try:
+            url = "https://api.duckduckgo.com/"
+            params = {
+                "q": query,
+                "format": "json",
+                "no_html": 1,
+                "skip_disambig": 1
+            }
 
-        Returns:
-            Complete dictionary with market data and SEC filing data
-        """
-        # Get Yahoo Finance data
-        stock_data = self.get_stock_data(ticker)
+            res = requests.get(url, params=params)
+            data = res.json()
 
-        if not stock_data.get('success'):
-            return stock_data
+            summary = data.get("AbstractText")
 
-        # Get SEC 10-Q filings
-        sec_filings = self.get_recent_10q_filings(
-            ticker,
-            num_quarters=1,
-            include_document_html=True
-        )
+            # fallback if empty
+            if not summary:
+                summary = f"{query} is a publicly listed company. Further details unavailable."
 
-        # Get financial facts from XBRL
-        financial_facts = self.get_financial_facts(ticker)
+            return {
+                "success": True,
+                "summary": summary
+            }
 
-        # Combine all data
-        complete_data = {
-            **stock_data,
-            "sec_filings": sec_filings,
-            "financial_facts": financial_facts,
-            "full_analysis": True
-        }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-        return complete_data
+
+    def get_company_overview(self, ticker):
+      stock = yf.Ticker(ticker)
+      info = stock.info or {}
+
+    # ===== COMPANY OVERVIEW (FACTUAL) =====
+      overview = info.get("longBusinessSummary")
+
+      if not overview:
+          company_name = info.get("longName") or ticker
+          search_result = self.search_company_info(f"{company_name} company")
+          if search_result.get("success"):
+              overview = search_result.get("summary")
+
+      if not overview:
+          overview = f"{ticker} is a publicly listed company."
+
+      # ===== EXECUTIVE SUMMARY (INVESTMENT VIEW) =====
+      stock_data = self.get_stock_data(ticker)
+
+      exec_summary = "Insufficient data to form a view."
+
+      if stock_data.get("success"):
+          km = stock_data.get("key_metrics", {})
+          hd = stock_data.get("historical_data", {})
+          ad = stock_data.get("analyst_data", {})
+
+          pe = km.get("pe_ratio")
+          ret = hd.get("return")
+          rating = ad.get("recommendation") or "neutral"
+
+          # Simple investment logic
+          if ret and ret > 0.05 and rating in ["buy", "strong_buy"]:
+              recommendation = "INVEST"
+          elif ret and ret < -0.05:
+              recommendation = "PASS"
+          else:
+              recommendation = "HOLD / NEUTRAL"
+
+          exec_summary = (
+              f"{ticker} shows a {round(ret*100,2) if ret else 'N/A'}% return over the past month, "
+              f"with a P/E ratio of {pe}. Analyst sentiment is '{rating}'. "
+              f"Based on recent performance and market sentiment, the recommendation is: {recommendation}."
+          )
+      overview_words = overview.split()
+      overview_300 = " ".join(overview_words[:300])
+
+      return {
+          "success": True,
+          "executive_summary": exec_summary,
+          "company_overview": overview_300
+      }
 
     # ============ FORMATTING METHODS ============
 
@@ -665,12 +707,9 @@ CIK: {sec_data.get('cik', 'N/A')}
 RECENT 10-Q FILINGS:
 """
         for filing in sec_data.get('filings', []):
-            html_length = filing.get('document_html_length')
-            html_length_line = f"  HTML Length: {html_length:,} characters\n" if html_length is not None else ""
             formatted += f"""
 - {filing.get('quarter', 'N/A')} (Filed: {filing.get('filing_date', 'N/A')})
   Document URL: {filing.get('document_url', 'N/A')}
-{html_length_line}  Document Fetched: {filing.get('document_fetch_success', False)}
 """
 
         return formatted.strip()
@@ -716,3 +755,52 @@ KEY METRICS (Last 4 Quarters):
             formatted += f"{i}. {title} - {publisher}\n"
 
         return formatted.strip()
+
+    def format_company_info(self, data):
+        if not data.get("success"):
+            return f"Error: {data.get('error')}"
+
+        return f"""
+=== EXECUTIVE SUMMARY ===
+{data.get('executive_summary')}
+
+=== COMPANY OVERVIEW ===
+{data.get('company_overview')}
+"""
+
+    def get_complete_analysis_data(self, ticker: str) -> Dict:
+        """
+        Convenience method that combines Yahoo Finance data AND SEC filing data.
+        This is the main method to call for full analysis.
+
+        Args:
+            ticker: Stock ticker symbol
+
+        Returns:
+            Complete dictionary with market data and SEC filing data
+        """
+        # Get Yahoo Finance data
+        stock_data = self.get_stock_data(ticker)
+
+        if not stock_data.get('success'):
+            return stock_data
+
+        # Get SEC 10-Q filings
+        sec_filings = self.get_recent_10q_filings(ticker, num_quarters=4)
+
+        # Get financial facts from XBRL
+        financial_facts = self.get_financial_facts(ticker)
+
+        # Search API
+        company_info = self.get_company_overview(ticker)
+
+        # Combine all data
+        complete_data = {
+            **stock_data,
+            "sec_filings": sec_filings,
+            "financial_facts": financial_facts,
+            "full_analysis": True,
+            "company_info": company_info
+        }
+
+        return complete_data
