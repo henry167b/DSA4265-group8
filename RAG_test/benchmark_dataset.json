@@ -1,0 +1,242 @@
+[
+  {
+    "company_name": "Apple",
+    "ticker": "AAPL",
+    "filing_date": "2026-01-30",
+    "question": "What are the most material risks explicitly disclosed by management this quarter?",
+    "oracle_answer": "Management said there were \"no material changes\" to risk factors versus the 2025 10-K. The biggest quarter-specific disclosed risks were legal/regulatory: a €500 million EU DMA fine and potential further fines of up to 10% of annual worldwide net sales.",
+    "question_type": "risk_material"
+  },
+  {
+    "company_name": "Apple",
+    "ticker": "AAPL",
+    "filing_date": "2026-01-30",
+    "question": "What operational or financial pressures could affect performance in upcoming quarters?",
+    "oracle_answer": "Key pressures are tariff costs, higher operating expenses, and margin pressure. R&D rose 32% to $10.9B; total operating expenses rose 19% to $18.4B. Management also said gross margins may face \"volatility and downward pressure.\"",
+    "question_type": "forward_pressure"
+  },
+  {
+    "company_name": "Apple",
+    "ticker": "AAPL",
+    "filing_date": "2026-01-30",
+    "question": "What actions has management taken to address these risks or stabilize performance?",
+    "oracle_answer": "Apple said it has appealed the EU decision, is making changes to its DMA compliance plan, uses FX hedging for up to 12 months on forecasted exposures, and believes its liquidity is sufficient for the next 12 months and beyond.",
+    "question_type": "management_actions"
+  },
+  {
+    "company_name": "Apple",
+    "ticker": "AAPL",
+    "filing_date": "2026-01-30",
+    "question": "What were the main drivers of revenue growth or decline this quarter?",
+    "oracle_answer": "Total net sales rose 16% to $143.8B. Textually, growth was driven by iPhone (higher sales of Pro models) and Services (higher sales from advertising, the App Store, and cloud services). iPad also grew, while Mac declined due to weaker laptop and desktop sales, and Wearables, Home and Accessories fell due to lower Wearables sales.",
+    "question_type": "revenue_driver"
+  },
+  {
+    "company_name": "Apple",
+    "ticker": "AAPL",
+    "filing_date": "2026-01-30",
+    "question": "How is the company’s profitability trending, and what is driving margin changes?",
+    "oracle_answer": "Profitability improved: total gross margin rose to 48.2% from 46.9%. Product gross margin increased to 40.7% from 39.3% due to a different product mix, partly offset by tariff costs. Services gross margin increased to 76.5% from 75.0% due to higher Services sales and a different services mix, though higher costs partly offset this.",
+    "question_type": "profitability_margin"
+  },
+  {
+    "company_name": "Apple",
+    "ticker": "AAPL",
+    "filing_date": "2026-01-30",
+    "question": "What are the expected main drivers of revenue growth moving forward?",
+    "oracle_answer": "No formal textual outlook was given, but the implied drivers are continued iPhone strength, especially premium models, and Services growth in advertising, App Store, and cloud services.",
+    "question_type": "forward_revenue_driver"
+  },
+  {
+    "company_name": "Alphabet",
+    "ticker": "GOOG",
+    "filing_date": "2025-10-30",
+    "question": "What are the most material risks explicitly disclosed by management this quarter?",
+    "oracle_answer": "Management did not identify a broad reset to risk factors; it pointed back to the 2024 10-K and ongoing legal proceedings. The most material quarter-specific disclosed issue was the EC's September 5, 2025 competition decision and $3.5B fine, alongside continuing global antitrust and competition investigations and litigation.",
+    "question_type": "risk_material"
+  },
+  {
+    "company_name": "Alphabet",
+    "ticker": "GOOG",
+    "filing_date": "2025-10-30",
+    "question": "What operational or financial pressures could affect performance in upcoming quarters?",
+    "oracle_answer": "Key pressures are rising AI and technical-infrastructure spend, TAC and content-acquisition costs, and legal costs. Cost of revenues rose 13% to $41.4B, operating expenses rose to $29.7B, and Q3 capital expenditures were $24.0B, primarily for technical infrastructure; legal and other matters also increased sharply because of the EC fine.",
+    "question_type": "forward_pressure"
+  },
+  {
+    "company_name": "Alphabet",
+    "ticker": "GOOG",
+    "filing_date": "2025-10-30",
+    "question": "What actions has management taken to address these risks or stabilize performance?",
+    "oracle_answer": "Alphabet uses foreign-currency contracts and cash flow hedges to manage FX risk, continued large buybacks with $11.6B of Class A and Class C repurchases in Q3, and said existing cash, cash equivalents, and marketable securities are sufficient for at least the next 12 months and the foreseeable future.",
+    "question_type": "management_actions"
+  },
+  {
+    "company_name": "Alphabet",
+    "ticker": "GOOG",
+    "filing_date": "2025-10-30",
+    "question": "What were the main drivers of revenue growth or decline this quarter?",
+    "oracle_answer": "Revenue rose 16% to $102.3B, driven by Google Services and Google Cloud. Search and other rose to $56.6B, YouTube Ads to $10.3B, subscriptions, platforms and devices to $12.9B, and Google Cloud to $15.2B; Google Network declined to $7.4B.",
+    "question_type": "revenue_driver"
+  },
+  {
+    "company_name": "Alphabet",
+    "ticker": "GOOG",
+    "filing_date": "2025-10-30",
+    "question": "How is the company’s profitability trending, and what is driving margin changes?",
+    "oracle_answer": "Profitability improved in dollars but margin was pressured by legal and infrastructure costs. Operating income rose to $31.2B from $28.5B, while Google Cloud operating income improved to $3.6B from $1.9B, but overall operating margin fell to about 30.5% from about 32.3% as the $3.5B EC fine, TAC, depreciation, and technical-infrastructure costs weighed on margins.",
+    "question_type": "profitability_margin"
+  },
+  {
+    "company_name": "Alphabet",
+    "ticker": "GOOG",
+    "filing_date": "2025-10-30",
+    "question": "What are the expected main drivers of revenue growth moving forward?",
+    "oracle_answer": "No formal textual outlook was given, but the implied drivers are continued Search and YouTube advertising growth, subscription growth from YouTube and Google One, and Google Cloud. Cloud demand is supported by a $157.7B revenue backlog, with just over 55% expected to be recognized over the next 24 months.",
+    "question_type": "forward_revenue_driver"
+  },
+  {
+    "company_name": "Meta Platforms",
+    "ticker": "META",
+    "filing_date": "2025-10-30",
+    "question": "What are the most material risks explicitly disclosed by management this quarter?",
+    "oracle_answer": "Management highlighted continuing regulatory, antitrust, privacy, consumer-protection, content, and AI-related risks rather than a single new quarter-specific risk. It said adverse judgments, fines, orders, or consent decrees from the many ongoing legal and government proceedings could materially harm the business.",
+    "question_type": "risk_material"
+  },
+  {
+    "company_name": "Meta Platforms",
+    "ticker": "META",
+    "filing_date": "2025-10-30",
+    "question": "What operational or financial pressures could affect performance in upcoming quarters?",
+    "oracle_answer": "Key pressures are heavy AI and infrastructure spending, legal costs, and tax volatility. Q3 capital expenditures were $19.37B, R&D rose 35% due to higher compensation and infrastructure costs for AI initiatives, and the quarter included a $15.93B one-time tax charge tied to OBBBA.",
+    "question_type": "forward_pressure"
+  },
+  {
+    "company_name": "Meta Platforms",
+    "ticker": "META",
+    "filing_date": "2025-10-30",
+    "question": "What actions has management taken to address these risks or stabilize performance?",
+    "oracle_answer": "Meta said it is continuing to invest in Reels and AI initiatives, including its AI-powered discovery engine and broader generative-AI and superintelligence efforts. It also said liquidity and operating cash flow are sufficient to fund infrastructure and AI investments for at least the next 12 months, while still returning capital through $3.16B of Q3 buybacks and $1.33B of dividends and dividend equivalents.",
+    "question_type": "management_actions"
+  },
+  {
+    "company_name": "Meta Platforms",
+    "ticker": "META",
+    "filing_date": "2025-10-30",
+    "question": "What were the main drivers of revenue growth or decline this quarter?",
+    "oracle_answer": "Total revenue rose 26% to $51.24B. Family of Apps revenue increased $10.45B, almost entirely from advertising, with ad impressions up 14% and average price per ad up 10%; Reality Labs revenue also increased 74% to $470M, mostly from Meta Quest and AI glasses.",
+    "question_type": "revenue_driver"
+  },
+  {
+    "company_name": "Meta Platforms",
+    "ticker": "META",
+    "filing_date": "2025-10-30",
+    "question": "How is the company’s profitability trending, and what is driving margin changes?",
+    "oracle_answer": "Profitability was mixed. Operating income rose 18% to $20.53B on stronger ad revenue, but operating margin compressed to about 40.1% from about 42.7% as employee compensation, infrastructure, and legal-related costs increased. Net income fell to $2.71B because the quarter’s effective tax rate jumped to 87% due to the $15.93B one-time tax charge.",
+    "question_type": "profitability_margin"
+  },
+  {
+    "company_name": "Meta Platforms",
+    "ticker": "META",
+    "filing_date": "2025-10-30",
+    "question": "What are the expected main drivers of revenue growth moving forward?",
+    "oracle_answer": "No formal textual outlook was given, but the implied drivers are continued advertising growth in Family of Apps, especially from higher ad impressions and pricing, better Reels and AI-discovery monetization, paid messaging and subscription products, and growth in Reality Labs hardware such as AI glasses.",
+    "question_type": "forward_revenue_driver"
+  },
+  {
+    "company_name": "NVIDIA",
+    "ticker": "NVDA",
+    "filing_date": "2025-11-19",
+    "question": "What are the most material risks explicitly disclosed by management this quarter?",
+    "oracle_answer": "The most material quarter-specific risk was the April 2025 U.S. export restriction requiring licenses for H20 shipments into China. NVIDIA said this led to a $4.5B charge for H20 excess inventory and purchase obligations, and it also warned that shortages of data-center capacity, energy, capital, and supply can hurt future revenue.",
+    "question_type": "risk_material"
+  },
+  {
+    "company_name": "NVIDIA",
+    "ticker": "NVDA",
+    "filing_date": "2025-11-19",
+    "question": "What operational or financial pressures could affect performance in upcoming quarters?",
+    "oracle_answer": "Key pressures are export controls and tariffs, supply-chain complexity, customer infrastructure constraints, and higher operating costs. Gross margin fell to 73.4% from 74.6% year over year as Blackwell full-scale solutions ramped, and operating expenses rose 36% due to compute and infrastructure costs plus higher compensation and benefits.",
+    "question_type": "forward_pressure"
+  },
+  {
+    "company_name": "NVIDIA",
+    "ticker": "NVDA",
+    "filing_date": "2025-11-19",
+    "question": "What actions has management taken to address these risks or stabilize performance?",
+    "oracle_answer": "NVIDIA said the U.S. granted licenses in August 2025 allowing certain H20 shipments to certain China-based customers. It also uses foreign-currency forward contracts to hedge operating expenses, expanded capital returns with a new $60.0B repurchase authorization and $12.6B of Q3 buybacks, and said its $60.6B of cash, cash equivalents, and marketable securities is sufficient for its needs.",
+    "question_type": "management_actions"
+  },
+  {
+    "company_name": "NVIDIA",
+    "ticker": "NVDA",
+    "filing_date": "2025-11-19",
+    "question": "What were the main drivers of revenue growth or decline this quarter?",
+    "oracle_answer": "Q3 revenue rose 62% to $57.0B, driven mainly by Data Center. Management said growth came from accelerated computing, AI models, and agentic applications, with Blackwell as the majority of Data Center revenue; Data Center networking also benefited from NVLink, GB200 and GB300 systems, InfiniBand, and Ethernet for AI. Gaming also grew to $4.27B from $3.28B.",
+    "question_type": "revenue_driver"
+  },
+  {
+    "company_name": "NVIDIA",
+    "ticker": "NVDA",
+    "filing_date": "2025-11-19",
+    "question": "How is the company’s profitability trending, and what is driving margin changes?",
+    "oracle_answer": "Profitability remained very strong, though gross margin dipped as the product mix shifted. Gross margin fell to 73.4% from 74.6% year over year because the business moved from Hopper HGX systems to Blackwell full-scale datacenter solutions, but improved sequentially from 72.4% as Blackwell mix and cost structure improved. Operating income jumped to $36.0B from $21.9B.",
+    "question_type": "profitability_margin"
+  },
+  {
+    "company_name": "NVIDIA",
+    "ticker": "NVDA",
+    "filing_date": "2025-11-19",
+    "question": "What are the expected main drivers of revenue growth moving forward?",
+    "oracle_answer": "The implied forward drivers are continued Blackwell adoption, ongoing Data Center compute and networking demand, and the broader accelerated-computing and AI platform shift. Management also said future growth depends on customers having enough data-center capacity, energy, and capital to build AI infrastructure.",
+    "question_type": "forward_revenue_driver"
+  },
+  {
+    "company_name": "Tesla",
+    "ticker": "TSLA",
+    "filing_date": "2025-10-23",
+    "question": "What are the most material risks explicitly disclosed by management this quarter?",
+    "oracle_answer": "Management said current tariffs and trade-policy changes are important risks, with a relatively larger impact on the energy generation and storage business. It also highlighted ongoing legal exposure, including the 2018 CEO Performance Award litigation and lawsuits stemming from the 2023 data-misappropriation incident.",
+    "question_type": "risk_material"
+  },
+  {
+    "company_name": "Tesla",
+    "ticker": "TSLA",
+    "filing_date": "2025-10-23",
+    "question": "What operational or financial pressures could affect performance in upcoming quarters?",
+    "oracle_answer": "Key pressures are tariffs, trade-policy uncertainty, pricing and order-rate pressure, and FX risk. Tesla said these trends are likely to continue affecting vehicle pricing and operating margin, and it also said the current tariff regime hits energy generation and storage harder than automotive.",
+    "question_type": "forward_pressure"
+  },
+  {
+    "company_name": "Tesla",
+    "ticker": "TSLA",
+    "filing_date": "2025-10-23",
+    "question": "What actions has management taken to address these risks or stabilize performance?",
+    "oracle_answer": "Tesla said it is staying focused on profitable growth, making prudent investments, and using its balance sheet to fund AI, software, fleet-based profits, new products, and manufacturing expansion. It ended Q3 2025 with $41.65B in cash and investments, expects continued positive operating cash flow, and said it can adjust the pace of capital expenditures if demand or trade conditions worsen.",
+    "question_type": "management_actions"
+  },
+  {
+    "company_name": "Tesla",
+    "ticker": "TSLA",
+    "filing_date": "2025-10-23",
+    "question": "What were the main drivers of revenue growth or decline this quarter?",
+    "oracle_answer": "Total revenue rose to $28.10B from $25.18B. Automotive sales grew 8% because Model 3 and Model Y cash deliveries increased by about 46,000, while energy generation and storage revenue rose 44% on higher Megapack and Powerwall deployments, and services and other revenue also increased; these gains were partly offset by lower regulatory-credit revenue and lower one-time FSD recognition.",
+    "question_type": "revenue_driver"
+  },
+  {
+    "company_name": "Tesla",
+    "ticker": "TSLA",
+    "filing_date": "2025-10-23",
+    "question": "How is the company’s profitability trending, and what is driving margin changes?",
+    "oracle_answer": "Margins remained under pressure. Total automotive gross margin fell to 17.0% from 20.1% in Q3, mainly because of lower fixed-cost absorption, tariffs, and sales mix, partly offset by lower material costs. Total gross profit was roughly flat at $5.05B versus $5.00B even as revenue rose, and management said macro, industry, and tariff trends are likely to keep pressuring operating margin.",
+    "question_type": "profitability_margin"
+  },
+  {
+    "company_name": "Tesla",
+    "ticker": "TSLA",
+    "filing_date": "2025-10-23",
+    "question": "What are the expected main drivers of revenue growth moving forward?",
+    "oracle_answer": "Management pointed to autonomy, new products on the next-generation vehicle platform, and in-house cell manufacturing as the next phase of vehicle growth. It also highlighted continued energy-storage growth and said it is investing in AI, software, robotics, and fleet-based profit opportunities.",
+    "question_type": "forward_revenue_driver"
+  }
+]

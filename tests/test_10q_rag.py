@@ -9,7 +9,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 try:
-    from backend.agents.yahoo_finance_agent import YahooFinanceAgent
+    from backend.agents.financial_data_agent import YahooFinanceAgent
 except ModuleNotFoundError as exc:
     missing_module = getattr(exc, "name", "a required dependency")
     raise SystemExit(

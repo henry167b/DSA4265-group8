@@ -13,6 +13,12 @@ dependencies = [
   "yfinance",
 ]
 
+[project.optional-dependencies]
+rag-eval = [
+  "bert-score",
+  "sentence-transformers",
+]
+
 [tool.setuptools.packages.find]
 include = ["backend*"]
 exclude = ["frontend*"]
