@@ -1,4 +1,5 @@
 from .filing_chunker import prepare_filing_html_for_chunking
+from .filing_rag_service import FilingRAGService
 from .retrieval_pipeline import (
     FilingRetrievalPipeline,
     OpenAIChatGenerationProvider,
@@ -15,6 +16,7 @@ except ImportError:
 
 __all__ = [
     'prepare_filing_html_for_chunking',
+    'FilingRAGService',
     'FilingRetrievalPipeline',
     'OpenAIChatGenerationProvider',
     'OpenAIEmbeddingProvider',
