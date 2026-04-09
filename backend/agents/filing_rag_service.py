@@ -7,18 +7,20 @@ from backend.agents.filing_rag_service import FilingRAGService
 
 service = FilingRAGService(embedding_model="text-embedding-3-small", generation_model="gpt-4o-mini")
 
-# Option A: index from raw HTML + metadata
-service.index_from_html(html_string, filing_meta={"ticker": "AAPL", "filing_date": "2026-01-30", ...})
-
-# Option B: index from a prepared-filings payload (output of YahooFinanceAgent.get_recent_10q_filings)
-service.index_from_prepared_filings(prepared_filings_payload)
-
-# Retrieve and answer
-result = service.answer("What were the main drivers of revenue growth this quarter?")
+# Primary usage — central orchestrator passes raw HTML + question in one call:
+result = service.answer_from_html(html_string, "What drove revenue growth?", filing_meta={"ticker": "AAPL", ...})
 print(result["answer"])
 print(result["sources"])
 
-# Retrieve only (no generation)
+# Step-by-step (if you need to ask multiple questions against the same filing):
+service.index_from_html(html_string, filing_meta={"ticker": "AAPL", "filing_date": "2026-01-30", ...})
+result = service.answer("What were the main drivers of revenue growth this quarter?")
+
+# From a prepared-filings payload (output of YahooFinanceAgent.get_recent_10q_filings):
+service.index_from_prepared_filings(prepared_filings_payload)
+result = service.answer("What were the main risks disclosed?")
+
+# Retrieve only (no generation):
 hits = service.search("EU DMA fine legal proceedings")
 """
 from __future__ import annotations
@@ -132,6 +134,38 @@ class FilingRAGService:
     # ------------------------------------------------------------------
     # Retrieval and generation
     # ------------------------------------------------------------------
+
+    def answer_from_html(
+        self,
+        html: str,
+        question: str,
+        filing_meta: Optional[Dict] = None,
+        k: Optional[int] = None,
+    ) -> Dict:
+        """
+        Index a raw 10-Q HTML filing and answer a question in one call.
+
+        Intended for the central orchestrator agent:
+            result = rag.answer_from_html(html, "What drove revenue growth?", filing_meta)
+            print(result["answer"])
+
+        Parameters
+        ----------
+        html:
+            Raw HTML string of the 10-Q filing (from YahooFinanceAgent).
+        question:
+            The question to answer against the filing.
+        filing_meta:
+            Optional dict with keys: ticker, filing_date, accession_number, quarter, form_type.
+        k:
+            Number of chunks to retrieve. Defaults to per-question-type recommended_k.
+
+        Returns
+        -------
+        Dict with keys: question, answer, sources, success.
+        """
+        self.index_from_html(html, filing_meta=filing_meta)
+        return self.answer(question, k=k)
 
     def search(self, question: str, k: Optional[int] = None) -> Dict:
         """

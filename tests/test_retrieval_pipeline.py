@@ -142,6 +142,37 @@ def test_build_generation_context_includes_minimal_metadata():
     assert "Revenue increased because of iPhone and Services demand." in context
 
 
+def test_build_generation_context_sanitizes_and_truncates_large_chunks():
+    context = build_generation_context(
+        [
+            {
+                "ticker": "META",
+                "quarter": "2025 Q3",
+                "filing_date": "2025-10-30",
+                "source_type": "prose",
+                "section_name": "Item 1A.\x00 Risk Factors",
+                "period_end": "Sep 30, 2025",
+                "text": ("Risk disclosure details. " * 400) + "\x01\x02Trailing control chars",
+            },
+            {
+                "ticker": "META",
+                "quarter": "2025 Q3",
+                "filing_date": "2025-10-30",
+                "source_type": "prose",
+                "section_name": "Item 2",
+                "period_end": "Sep 30, 2025",
+                "text": "Second chunk",
+            },
+        ]
+    )
+
+    assert "\x00" not in context
+    assert "\x01" not in context
+    assert "\x02" not in context
+    assert "[Excerpt truncated for prompt size]" in context
+    assert "Section: Item 1A. Risk Factors" in context
+
+
 def test_order_retrieved_chunks_for_generation_sorts_oldest_to_newest():
     ordered = order_retrieved_chunks_for_generation(
         [

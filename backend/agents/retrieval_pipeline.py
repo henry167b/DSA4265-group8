@@ -917,35 +917,80 @@ def _is_retryable_openai_error(exc: Exception) -> bool:
 
 def _infer_query_style(question: str) -> str:
     lowered = question.lower()
-    if any(phrase in lowered for phrase in ["most material risks", "risk explicitly disclosed"]):
-        return "risk_material"
-    if any(phrase in lowered for phrase in ["actions has management taken", "stabilize performance", "address these risks"]):
-        return "management_actions"
-    if any(phrase in lowered for phrase in ["profitability", "margin change", "margin changes", "gross margin", "operating margin"]):
-        return "profitability_margin"
-    if any(phrase in lowered for phrase in ["operational or financial pressures", "pressures could affect", "headwinds", "downward pressure"]):
-        return "forward_pressure"
-    if any(phrase in lowered for phrase in ["expected main drivers of revenue growth", "moving forward", "revenue growth moving forward"]):
-        return "forward_revenue_driver"
-    if any(phrase in lowered for phrase in ["drivers of revenue growth", "drivers of revenue", "drove revenue growth", "revenue growth or decline"]):
-        return "revenue_driver"
-    if any(phrase in lowered for phrase in ["liquidity", "capital resources"]):
-        return "liquidity"
-    if any(phrase in lowered for phrase in ["cash flow", "cash flows"]):
+
+    # Cash flow — check before liquidity (more specific)
+    if any(phrase in lowered for phrase in [
+        "cash flow", "cash flows", "free cash", "operating cash", "investing activities", "financing activities",
+    ]):
         return "cash_flow"
-    if any(
-        phrase in lowered for phrase in [
-            "what was",
-            "how much",
-            "how many",
-            "as of",
-            "diluted",
-            "basic earnings per share",
-        ]
-    ):
+
+    # Liquidity / balance sheet
+    if any(phrase in lowered for phrase in [
+        "liquidity", "capital resources", "cash and cash equivalents", "debt", "borrow", "credit facility",
+        "balance sheet", "current ratio", "working capital",
+    ]):
+        return "liquidity"
+
+    # Risk disclosure
+    if any(phrase in lowered for phrase in [
+        "risk", "risks", "material risk", "disclosed", "disclosure", "regulatory", "litigation",
+        "legal proceeding", "fine", "penalty", "investigation", "antitrust", "sanction",
+    ]):
+        return "risk_material"
+
+    # Management actions / response
+    if any(phrase in lowered for phrase in [
+        "action", "actions", "taken", "address", "mitigat", "hedge", "hedging", "appeal",
+        "stabilize", "response", "respond", "strategy", "initiative", "buyback", "repurchase",
+        "what did management", "how did management", "steps taken",
+    ]):
+        return "management_actions"
+
+    # Profitability / margins
+    if any(phrase in lowered for phrase in [
+        "margin", "margins", "profitab", "gross profit", "operating income", "operating profit",
+        "net income", "net profit", "earnings", "ebitda", "eps", "earnings per share",
+        "return on", "cost structure", "cost of revenue", "cost of goods",
+    ]):
+        return "profitability_margin"
+
+    # Forward-looking pressure / headwinds
+    if any(phrase in lowered for phrase in [
+        "pressure", "pressures", "headwind", "headwinds", "upcoming quarter", "next quarter",
+        "going forward", "challenge", "risk to performance", "tariff", "inflation", "impact on",
+        "could affect", "affect performance", "outlook risk",
+    ]):
+        return "forward_pressure"
+
+    # Forward-looking revenue drivers
+    if any(phrase in lowered for phrase in [
+        "expect", "forecast", "outlook", "forward", "future revenue", "moving forward",
+        "next year", "anticipated", "projected", "guidance", "pipeline",
+    ]):
+        return "forward_revenue_driver"
+
+    # Revenue drivers (current period)
+    if any(phrase in lowered for phrase in [
+        "revenue", "revenues", "net sales", "sales", "growth", "decline", "driver", "drivers",
+        "segment", "product mix", "geographic", "volume", "pricing",
+    ]):
+        return "revenue_driver"
+
+    # Specific fact lookup
+    if any(phrase in lowered for phrase in [
+        "what was", "what were", "how much", "how many", "as of", "diluted", "basic eps",
+        "total assets", "total liabilities", "shares outstanding", "headcount", "employees",
+        "specific", "exact", "amount", "number", "figure", "value",
+    ]):
         return "fact"
-    if any(phrase in lowered for phrase in ["why", "driver", "main driver", "what did", "expect"]):
+
+    # Narrative / explanation
+    if any(phrase in lowered for phrase in [
+        "why", "explain", "describe", "what drove", "what caused", "what contributed",
+        "main driver", "primary reason", "what did", "how did", "what happened",
+    ]):
         return "narrative"
+
     return "general"
 
 
@@ -970,12 +1015,31 @@ def _build_metric_aliases(question: str, question_type: str) -> List[str]:
 def _build_preferred_sections(question: str, question_type: str) -> List[str]:
     sections = list(QUESTION_TYPE_SECTION_HINTS.get(question_type, []))
     lowered = question.lower()
-    if "margin" in lowered:
+
+    # Keyword-driven section inference — applies to all question types including general
+    if "margin" in lowered or "gross profit" in lowered:
         sections.append("gross margin")
-    if "revenue" in lowered or "sales" in lowered:
+    if "revenue" in lowered or "sales" in lowered or "net sales" in lowered:
         sections.extend(["net sales", "results of operations"])
-    if "risk" in lowered:
+    if "risk" in lowered or "legal" in lowered or "litigation" in lowered:
         sections.extend(["risk factors", "legal proceedings"])
+    if "cash" in lowered or "liquidity" in lowered:
+        sections.extend(["liquidity and capital resources"])
+    if "tax" in lowered or "income tax" in lowered:
+        sections.extend(["provision for income taxes", "results of operations"])
+    if "r&d" in lowered or "research" in lowered or "development" in lowered:
+        sections.extend(["research and development"])
+    if "operating expense" in lowered or "opex" in lowered:
+        sections.extend(["operating expenses", "results of operations"])
+    if "segment" in lowered or "geographic" in lowered or "region" in lowered:
+        sections.extend(["results of operations", "net sales"])
+    if "debt" in lowered or "borrow" in lowered or "credit" in lowered:
+        sections.extend(["liquidity and capital resources"])
+    if "buyback" in lowered or "repurchase" in lowered or "dividend" in lowered:
+        sections.extend(["liquidity and capital resources"])
+    if question_type == "general":
+        sections.extend(["results of operations", "management's discussion and analysis"])
+
     return _unique_preserving_order(sections)
 
 
@@ -998,33 +1062,48 @@ def _build_subqueries(
         subqueries.append(" ".join(preferred_sections[:2]))
 
     if question_type == "profitability_margin":
-        subqueries.extend(
-            [
-                "gross margin trend",
-                "margin drivers product mix costs",
-            ]
-        )
+        subqueries.extend([
+            "gross margin trend",
+            "margin drivers product mix costs",
+        ])
     elif question_type in {"revenue_driver", "forward_revenue_driver"}:
-        subqueries.extend(
-            [
-                "revenue growth drivers",
-                "net sales by segment product mix",
-            ]
-        )
+        subqueries.extend([
+            "revenue growth drivers",
+            "net sales by segment product mix",
+        ])
     elif question_type == "forward_pressure":
-        subqueries.extend(
-            [
-                "operating pressures costs margins",
-                "forward looking risks expenses tariffs",
-            ]
-        )
+        subqueries.extend([
+            "operating pressures costs margins",
+            "forward looking risks expenses tariffs",
+        ])
     elif question_type == "management_actions":
-        subqueries.extend(
-            [
-                "management actions appealed plan hedging liquidity",
-                "steps taken to address risks",
-            ]
-        )
+        subqueries.extend([
+            "management actions appealed plan hedging liquidity",
+            "steps taken to address risks",
+        ])
+    elif question_type == "liquidity":
+        subqueries.extend([
+            "cash equivalents short-term investments liquidity",
+            "debt credit facility borrowings",
+        ])
+    elif question_type == "cash_flow":
+        subqueries.extend([
+            "operating cash flow investing financing activities",
+            "capital expenditures free cash flow",
+        ])
+    elif question_type == "risk_material":
+        subqueries.extend([
+            "material risk legal regulatory fine investigation",
+            "risk factors disclosed this quarter",
+        ])
+    elif question_type in {"general", "fact", "narrative"}:
+        # For open-ended questions, build keyword-focused subqueries from the question itself
+        if focus_terms:
+            subqueries.append(" ".join(focus_terms[:6]))
+            if len(focus_terms) > 3:
+                subqueries.append(" ".join(focus_terms[3:9]))
+        if preferred_sections:
+            subqueries.append(" ".join(preferred_sections[:3]))
 
     if focus_terms:
         subqueries.append(" ".join(focus_terms[:8]))
