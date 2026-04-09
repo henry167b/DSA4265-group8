@@ -18,7 +18,7 @@ from .retrieval_pipeline import (
     build_generation_context,
     order_retrieved_chunks_for_generation,
 )
-from .yahoo_finance_agent import YahooFinanceAgent
+from .financial_data_agent import YahooFinanceAgent
 
 logger = logging.getLogger(__name__)
 

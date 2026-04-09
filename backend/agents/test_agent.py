@@ -5,7 +5,8 @@ from langchain_core.tools import tool
 from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
 
-from .yahoo_finance_agent import YahooFinanceAgent
+from .financial_data_agent import YahooFinanceAgent
+from .filing_rag_service import FilingRAGService
 from .quarterly_sentiment import SentimentEmbeddingProvider
 from .supervisor_framework import OutputSupervisor, SupervisedAgentRunner
 
@@ -16,6 +17,7 @@ import re
 
 # Instantiate your existing agent
 yf_agent = YahooFinanceAgent(user_email="e0968923@u.nus.edu")
+filing_rag_service = FilingRAGService()
 sentiment_agent = SentimentEmbeddingProvider()
 
 
@@ -31,15 +33,38 @@ def get_stock_data(ticker: str, days_back: int = 30) -> str:
     data = yf_agent.get_stock_data(ticker, days_back)
     return yf_agent.format_for_next_agent(data)
 
+class CompanyOverviewInput(BaseModel):
+    ticker: str
+
+@tool(args_schema=CompanyOverviewInput)
 def get_company_overview(ticker: str) -> str:
     """Fetch a brief company overview for the given ticker."""
     data = yf_agent.get_company_overview(ticker)
     return yf_agent.format_overview_for_next_agent(data)
 
-def get_finincial_ratios(ticker: str) -> str:
+class FinancialRatiosInput(BaseModel):
+    ticker: str
+
+@tool(args_schema=FinancialRatiosInput)
+def get_financial_ratios(ticker: str) -> str:
     """Fetch key financial ratios for the given ticker."""
     data = yf_agent.get_financial_ratios(ticker)
     return yf_agent.format_ratios_for_next_agent(data)
+
+
+class CompleteAnalysisInput(BaseModel):
+    ticker: str
+@tool(args_schema=CompleteAnalysisInput)
+def get_complete_analysis(ticker: str) -> str:
+    """Run a full analysis combining Yahoo Finance market data + SEC filings + XBRL financial facts."""
+
+    data = yf_agent.get_complete_analysis_data(ticker)
+
+    yf_formatted = yf_agent.format_for_next_agent(data)
+    sec_formatted = yf_agent.format_sec_data_for_next_agent(data.get("sec_filings", {}))
+    facts_formatted = yf_agent.format_financial_facts_for_next_agent(data.get("financial_facts", {}))
+
+    return f"{yf_formatted}\n\n{sec_formatted}\n\n{facts_formatted}"
 
 
 # ── Tool 2: SEC 10-Q filings ───────────────────────────────────────────────
@@ -74,13 +99,20 @@ class QuestionInput(BaseModel):
 
 
 @tool(args_schema=QuestionInput)
-def answer_10q_question(
-    ticker: str,
-    question: str,
-) -> str:
-    """Answer a specific question by searching through recent 10-Q filings using our implemented RAG."""
-    result = yf_agent.answer_10q_question(ticker, question)
-    return result.get("answer", "Could not generate answer.")
+def answer_10q_question(ticker: str, question: str) -> str:
+    """Answer a question using recent 10-Q filings for the specified ticker."""
+    try:
+        rag = FilingRAGService()
+        filings_payload = yf_agent.get_recent_10q_filings(
+            ticker,
+            num_quarters=1,
+            include_document_html=True,
+        )
+        rag.index_from_prepared_filings(filings_payload)
+        result = rag.answer(question)
+        return result.get("answer", "Could not generate answer.")
+    except Exception as e:
+        return f"Failed to answer 10-Q question for {ticker}: {str(e)}"
 
 # ── Tool 5: Sentiment analysis over quarterly reports ──────────────────────────────────────────
 class SentimentInput(BaseModel):
@@ -106,33 +138,16 @@ def analyze_quarterly_sentiment(ticker: str, num_quarters: int = 4) -> str:
     except Exception as e:
         return f"Failed to analyze quarterly sentiment for {ticker}: {str(e)}"
 
-
-
-# ── Tool 6: Full combined analysis ─────────────────────────────────────────
-class CompleteAnalysisInput(BaseModel):
-    ticker: str
-
-
-@tool(args_schema=CompleteAnalysisInput)
-def get_complete_analysis(ticker: str) -> str:
-    """Run a full analysis combining Yahoo Finance market data + SEC filings + XBRL financial facts."""
-
-    data = yf_agent.get_complete_analysis_data(ticker)
-
-    yf_formatted = yf_agent.format_for_next_agent(data)
-    sec_formatted = yf_agent.format_sec_data_for_next_agent(data.get("sec_filings", {}))
-    facts_formatted = yf_agent.format_financial_facts_for_next_agent(data.get("financial_facts", {}))
-
-    return f"{yf_formatted}\n\n{sec_formatted}\n\n{facts_formatted}"
-
-
+# tool for agent 
 tools = [
     get_stock_data,
+    #get_company_overview,
+    #get_financial_ratios,
     get_sec_filings,
     get_financial_facts,
-    answer_10q_question,
-    analyze_quarterly_sentiment,
     get_complete_analysis,
+    answer_10q_question,
+    analyze_quarterly_sentiment
 ]
 
 def build_agent(model: str = "gpt-5.4"):
@@ -153,10 +168,17 @@ def build_agent(model: str = "gpt-5.4"):
         TOOL USAGE GUIDELINES
         - Use available tools selectively to gather relevant information before forming conclusions.
         - Use stock data tools for price performance, valuation metrics, and market data.
-        - Use filings retrieval tools for financials, disclosures, and risk factors.
-        - Use quarterly sentiment analysis when assessing management tone, forward guidance, or qualitative outlook.
+        - Use filings retrieval tools for financials, disclosures, and risk factors from 10-Qs.
+        - Use quarterly sentiment analysis when assessing management tone, forward guidance, or qualitative outlook from 10-Q filings.
         - Do not call tools unnecessarily; only use them when they add material value to the analysis.
         - Integrate tool outputs into the narrative rather than listing them mechanically.
+                     
+        RAG USAGE GUIDELINES
+        - Use the 10-Q RAG tool for detailed, text-based questions about filings (e.g., risks, revenue drivers, liquidity).
+        - The RAG tool operates on one company at a time and retrieves information from recent filings.
+        - Do NOT use the RAG tool for cross-company comparisons.
+        - Prefer other tools (financial ratios, stock data) for quantitative or structured data.
+        - Avoid repeated RAG calls unless the question requires deeper analysis of filings.
 
         STYLE
         - Write in a formal, analytical, professional tone.
@@ -244,6 +266,11 @@ def _extract_agent_output(result) -> str:
             return str(last_message.get("content", ""))
     return str(result)
 
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+
+
 def build_supervised_runner(
     agent_model: str = "gpt-5.4",
     supervisor_model: str = "gpt-5.4",
@@ -259,7 +286,7 @@ def build_supervised_runner(
 
 def run_agent(
     query: str,
-    supervise: bool = True,
+    supervise: bool = False,
     supervision_notes: str = """
     Review and revise the draft so that it:
     - contains no conversational or chatbot-style language
@@ -278,16 +305,8 @@ def run_agent(
     runner = build_supervised_runner()
     return runner.run(query, supervision_notes=supervision_notes)
 
-def make_report_filename(ticker: str, report_type: str = "analysis") -> str:
-   
-    safe_ticker = re.sub(r"[^A-Za-z0-9_-]", "", ticker.upper())
-    date_str = datetime.now().strftime("%Y-%m-%d")
-    
-    return f"{safe_ticker}_Investment_Analysis_{date_str}.md"
-    
 
-
-def run_agent_for_ticker(ticker: str, task: str, supervise: bool = True):
+def run_agent_for_ticker(ticker: str, task: str, supervise: bool = False):
     query = f"""
         The stock ticker is {ticker}.
         Use {ticker} for all tool calls.
@@ -298,6 +317,16 @@ def run_agent_for_ticker(ticker: str, task: str, supervise: bool = True):
 
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+
+def make_report_filename(ticker: str, report_type: str = "analysis") -> str:
+   
+    safe_ticker = re.sub(r"[^A-Za-z0-9_-]", "", ticker.upper())
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    
+    return f"{safe_ticker}_Investment_Analysis_{date_str}.md"
+    
+
 
 
 if __name__ == "__main__":
@@ -305,21 +334,30 @@ if __name__ == "__main__":
     task = "Give me a full analysis and flag any risks from the latest 10-Q"
 
     result = run_agent_for_ticker(ticker, task)
-    output = result.get("final_output", "")
-    supervisor_info = result.get("supervisor", {})
+
+    output = _extract_agent_output(result)
+
+    supervisor_info = {}
+    if isinstance(result, dict):
+        supervisor_info = result.get("supervisor", {})
 
     file_path = make_report_filename(ticker, report_type="analysis")
 
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(output)
 
+    print("\n===== RAW RESULT TYPE =====\n")
+    print(type(result))
+
     print("\n===== FINAL OUTPUT =====\n")
-    print(output)
+    print(repr(output))
+
     print("\n===== SUPERVISOR REVIEW =====\n")
     print(supervisor_info)
-    print(f"\nSaved to: {file_path}")
 
     print(f"\nSaved to: {file_path}")
 
-    # cd /Users/jasonlow/Desktop/DSA4265-group8 PYTHONPATH=. /usr/local/bin/python3 -m backend.agents.test_agent
+
+    
+    # PYTHONPATH=. /usr/local/bin/python3 -m backend.agents.test_agent
     
