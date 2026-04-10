@@ -1,70 +1,101 @@
-# tests/test_quarterly_sentiment.py
-
 import os
+import re
 import sys
+from collections import Counter
 
-# Make sure the project root is importable when running:
-# python .\tests\test_quarterly_sentiment.py
+# Make sure the project root is importable
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from backend.agents.yahoo_finance_agent import YahooFinanceAgent
 from backend.agents.quarterly_sentiment import QuarterlySentimentAnalyzer
+
+
+def _extract_section(chunk: dict) -> str:
+    return (
+        chunk.get("section_name")
+        or chunk.get("section")
+        or chunk.get("metadata", {}).get("section_name")
+        or "UNKNOWN"
+    )
+
+
+def _preview_text(text: str, limit: int = 300) -> str:
+    normalized = re.sub(r"\s+", " ", text or "").strip()
+    normalized = re.sub(r"-{8,}", " --- ", normalized)
+    return normalized[:limit]
 
 
 def main() -> None:
     ticker = "NVDA"
+    num_quarters = 4  # Analyze last 4 quarters
 
-    yahoo_agent = YahooFinanceAgent()
+    print(f"\nRunning real integration test for {ticker} (last {num_quarters} quarters)")
+    print("=" * 120)
+
+    # Create analyzer with real providers
     analyzer = QuarterlySentimentAnalyzer(
-        yahoo_agent=yahoo_agent,
-        top_k=5,
-        num_quarters=4,
-        price_label_threshold=0.02,
+        yahoo_agent=None,  # Use default YahooFinanceAgent
+        num_quarters=num_quarters,
+        openai_api_key=os.environ.get("OPENAI_API_KEY"),
     )
 
     result = analyzer.analyze_ticker(ticker)
 
-    print(f"\nQuarterly sentiment analysis for {ticker}")
-    print("=" * 110)
-
     if not result.get("success"):
-        print("Failed:", result.get("error"))
+        print(f"Error fetching filings: {result.get('error')}")
         return
 
-    quarterly_results = result.get("quarterly_results", [])
+    all_results = result.get("quarterly_results", [])
 
-    print(
-        f"{'Quarter':<10} | {'Filing Date':<12} | {'Predicted':<10} | {'Realized':<10} | "
-        f"{'% Change':>10} | {'Start Price':>12} | {'End Price':>10}"
-    )
-    print("-" * 110)
+    for q_result in all_results:
+        print(f"\nQuarter {q_result['quarter']}:")
+        print(f"Filing Date: {q_result['filing_date']}")
+        print(f"Predicted Label: {q_result['predicted_label']}")
+        print(f"Actual Label: {q_result['actual_label']}")
+        print(f"Realized % Change: {q_result['realized_next_quarter_pct_change']}")
+        print(f"Chunks Used: {q_result['chunks_used']}")
+        print(f"Selected Sections: {q_result['selected_sections']}")
+        print(f"Price Error: {q_result['price_error']}")
+        print("-" * 60)
 
-    for quarter_data in quarterly_results:
-        quarter = quarter_data.get("quarter", "")
-        filing_date = quarter_data.get("filing_date", "")
-        predicted = quarter_data.get("predicted_label", "N/A")
-        realized = quarter_data.get("realized_next_quarter_label", "N/A")
+        # --- DEBUG: print filtered chunks ---
+        retrieved_chunks = q_result.get("retrieved_chunks", [])
+        for idx, chunk in enumerate(retrieved_chunks, start=1):
+            text = chunk.get("text", "")
+            section = _extract_section(chunk)
+            source_type = chunk.get("source_type", "UNKNOWN")
+            chunk_id = chunk.get("chunk_id", f"chunk_{idx}")
+            selection_debug = chunk.get("selection_debug", {})
 
-        pct_change = quarter_data.get("realized_next_quarter_pct_change")
-        start_price = quarter_data.get("realized_next_quarter_start_price")
-        end_price = quarter_data.get("realized_next_quarter_end_price")
+            print(
+                f"Chunk {idx} | ID: {chunk_id} | Source: {source_type} | "
+                f"Section: {section} | Len: {len(text)}"
+            )
+            if selection_debug:
+                debug_bucket = selection_debug.get("section_bucket", "UNKNOWN")
+                debug_rank = selection_debug.get("section_rank", "?")
+                debug_score = selection_debug.get("adjusted_score", "?")
+                debug_reasons = "; ".join(selection_debug.get("reasons", []))
+                print(
+                    f"Selection Debug | Bucket: {debug_bucket} | "
+                    f"Rank in Section: {debug_rank} | Adjusted Score: {debug_score}"
+                )
+                print(f"Reasons: {debug_reasons}")
+            print(_preview_text(text, 300))
+            print("-" * 40)
 
-        pct_change_str = f"{pct_change:.2f}%" if pct_change is not None else "N/A"
-        start_price_str = f"{start_price:.2f}" if start_price is not None else "N/A"
-        end_price_str = f"{end_price:.2f}" if end_price is not None else "N/A"
+        print("=" * 120)
 
-        print(
-            f"{quarter:<10} | {filing_date:<12} | {predicted:<10} | {realized:<10} | "
-            f"{pct_change_str:>10} | {start_price_str:>12} | {end_price_str:>10}"
-        )
-
+    # Summary
+    labels = [r["predicted_label"] for r in all_results]
     print("\nSummary")
-    print("=" * 110)
-    print(f"Generated at: {result.get('generated_at')}")
-    print(f"Filing count: {result.get('filing_count')}")
-    print(f"Chunk count: {result.get('chunk_count')}")
+    print("=" * 120)
+    print(f"Label distribution: {dict(Counter(labels))}")
+    print(f"Unique predicted labels: {len(set(labels))} / {len(labels)}")
+
+    if len(set(labels)) == 1 and labels:
+        print("WARNING: All predicted labels are identical.")
 
 
 if __name__ == "__main__":
