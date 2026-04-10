@@ -79,8 +79,8 @@ PAGE_ARTIFACT_RE = re.compile(
 
 def prepare_filing_html_for_chunking(
     html_content: str,
-    prose_chunk_size: int = 600,
-    prose_chunk_overlap: int = 100,
+    prose_chunk_size: int = 1200,
+    prose_chunk_overlap: int = 150,
     table_window: int = 10,
     table_overlap: int = 2,
 ) -> Dict:
@@ -243,10 +243,11 @@ def _build_prose_chunk_records(
         nonlocal buffer
         if not buffer:
             return
-        text = "\n\n".join(buffer).strip()
-        if not text:
+        body = "\n\n".join(buffer).strip()
+        if not body:
             buffer = []
             return
+        text = f"[{section_name}]\n\n{body}" if section_name and section_name != "General" else body
         records.append(
             {
                 "text": text,
