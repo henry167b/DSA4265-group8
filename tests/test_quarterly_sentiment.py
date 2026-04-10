@@ -27,7 +27,7 @@ def _preview_text(text: str, limit: int = 300) -> str:
 
 
 def main() -> None:
-    ticker = "AAPL"
+    ticker = "NVDA"
     num_quarters = 4  # Analyze last 4 quarters
 
     print(f"\nRunning real integration test for {ticker} (last {num_quarters} quarters)")

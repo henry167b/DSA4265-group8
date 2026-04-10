@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Tuple
 import pandas as pd
 import yfinance as yf
 
+from .filing_chunker import prepare_filing_html_for_chunking
 from .financial_data_agent import YahooFinanceAgent
 from .retrieval_pipeline import (
     FilingRetrievalPipeline,
@@ -463,6 +464,78 @@ class QuarterlySentimentAnalyzer:
 
         return pipeline, selected_sections, chunk_count
 
+    def _prepare_recent_filings_for_analysis(self, ticker: str) -> Dict:
+        """
+        Prepare recent 10-Q filings with chunk-ready data.
+
+        Supports both the legacy YahooFinanceAgent interface and the newer
+        get_recent_10q_filings interface.
+        """
+        legacy_prepare = getattr(self.yahoo_agent, "prepare_recent_10q_filings_for_chunking", None)
+        if callable(legacy_prepare):
+            return legacy_prepare(
+                ticker=ticker,
+                num_quarters=self.num_quarters,
+            )
+
+        filings_payload = self.yahoo_agent.get_recent_10q_filings(
+            ticker=ticker,
+            num_quarters=self.num_quarters,
+            include_document_html=True,
+        )
+
+        if not filings_payload.get("success"):
+            return {
+                "success": False,
+                "ticker": ticker.upper(),
+                "error": filings_payload.get("error", "Failed to fetch recent filings."),
+                "filings": [],
+            }
+
+        prepared_filings: List[Dict] = []
+        for filing in filings_payload.get("filings", []):
+            filing_copy = dict(filing)
+            html_content = filing_copy.get("document_html")
+
+            if not html_content:
+                document_url = filing_copy.get("document_url")
+                if document_url:
+                    html_content = self.yahoo_agent.get_full_10q_document(document_url)
+
+            if not html_content:
+                logger.warning(
+                    "Skipping filing due to missing HTML content for %s on %s",
+                    ticker.upper(),
+                    filing_copy.get("filing_date", "N/A"),
+                )
+                continue
+
+            try:
+                filing_copy["prepared_chunk_data"] = prepare_filing_html_for_chunking(html_content)
+                prepared_filings.append(filing_copy)
+            except Exception as exc:
+                logger.warning(
+                    "Failed to prepare filing for %s on %s: %s",
+                    ticker.upper(),
+                    filing_copy.get("filing_date", "N/A"),
+                    exc,
+                )
+
+        if not prepared_filings:
+            return {
+                "success": False,
+                "ticker": ticker.upper(),
+                "error": "No filings could be prepared for chunking.",
+                "filings": [],
+            }
+
+        return {
+            "success": True,
+            "ticker": ticker.upper(),
+            "filings": prepared_filings,
+            "prepared_for_chunking": True,
+        }
+
     def _retrieve_chunks_for_filing(
         self,
         pipeline: FilingRetrievalPipeline,
@@ -550,10 +623,7 @@ class QuarterlySentimentAnalyzer:
           - chunk_count
           - quarterly_results
         """
-        prepared_filings = self.yahoo_agent.prepare_recent_10q_filings_for_chunking(
-            ticker=ticker,
-            num_quarters=self.num_quarters,
-        )
+        prepared_filings = self._prepare_recent_filings_for_analysis(ticker=ticker)
 
         if not prepared_filings.get("success"):
             return {
