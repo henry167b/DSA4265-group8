@@ -309,7 +309,7 @@ def _retrieve_chunks_for_filing(
 
 
 def main() -> None:
-    ticker = "AAPL"
+    ticker = "TSLA"
     num_quarters = 4
     horizon_days = 90
     price_label_threshold = 0.10
@@ -378,9 +378,45 @@ def main() -> None:
         print(f"Model Error: {tool_output.get('model_error')}")
         print(f"Price Error: {tool_output.get('price_error')}")
 
-        sample_chunk = (tool_output.get("retrieved_chunks") or [{}])[0]
-        if sample_chunk:
-            print(f"Sample Chunk Preview: {_preview_text(sample_chunk.get('text', ''))}")
+        retrieved_chunks = tool_output.get("retrieved_chunks", []) or []
+        for idx, chunk in enumerate(retrieved_chunks, start=1):
+            section_name = (
+                chunk.get("section_name")
+                or chunk.get("section")
+                or chunk.get("metadata", {}).get("section_name")
+                or "UNKNOWN"
+            )
+            chunk_id = chunk.get("chunk_id", f"chunk_{idx}")
+            source_type = chunk.get("source_type", "UNKNOWN")
+            text = chunk.get("text", "")
+            score = chunk.get("score")
+            rerank_score = chunk.get("rerank_score")
+            hybrid_score = chunk.get("hybrid_score")
+            dense_score = chunk.get("dense_score")
+            sparse_score = chunk.get("sparse_score")
+            selection_debug = chunk.get("selection_debug", {})
+
+            print(
+                f"Chunk {idx} | ID: {chunk_id} | Source: {source_type} | "
+                f"Section: {section_name} | Len: {len(text)}"
+            )
+            print(
+                f"Scores | score: {score} | rerank: {rerank_score} | "
+                f"hybrid: {hybrid_score} | dense: {dense_score} | sparse: {sparse_score}"
+            )
+
+            if selection_debug:
+                print(
+                    f"Selection Debug | Bucket: {selection_debug.get('section_bucket', 'UNKNOWN')} | "
+                    f"Rank in Section: {selection_debug.get('section_rank', '?')} | "
+                    f"Adjusted Score: {selection_debug.get('adjusted_score', '?')}"
+                )
+                reasons = selection_debug.get("reasons", [])
+                if reasons:
+                    print(f"Reasons: {'; '.join(reasons)}")
+
+            print(f"Chunk Preview: {_preview_text(text)}")
+            print("-" * 80)
         print("-" * 120)
 
     print("=" * 120)
