@@ -16,10 +16,6 @@ from .retrieval_pipeline import (
     OpenAIEmbeddingProvider,
     build_chunk_records_from_prepared_filings,
 )
-<<<<<<< HEAD
-from .financial_data_agent import YahooFinanceAgent
-=======
->>>>>>> origin/main
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

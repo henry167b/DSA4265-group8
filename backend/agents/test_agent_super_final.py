@@ -4,10 +4,11 @@ from pydantic import BaseModel, Field
 from langchain_core.tools import tool
 from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
+from .retrieval_pipeline import OpenAIChatGenerationProvider
 
 from .financial_data_agent import YahooFinanceAgent
 from .filing_rag_service import FilingRAGService
-from .quarterly_sentiment import SentimentEmbeddingProvider
+from .quarterly_sentiment_tool import GenerationProvider, QuarterlySentimentTool
 from .supervisor_framework import OutputSupervisor, SupervisedAgentRunner
 
 from datetime import datetime
@@ -24,10 +25,10 @@ logger = logging.getLogger(__name__)
 
 
 
-# Instantiate your existing agent
+# Instantiate existing agent
 yf_agent = YahooFinanceAgent(user_email="e0968923@u.nus.edu")
 filing_rag_service = FilingRAGService()
-sentiment_agent = SentimentEmbeddingProvider()
+sentiment_agent = QuarterlySentimentTool()
 
 
 
@@ -64,6 +65,7 @@ def get_financial_ratios(ticker: str) -> str:
 
 class CompleteAnalysisInput(BaseModel):
     ticker: str
+
 @tool(args_schema=CompleteAnalysisInput)
 def get_complete_analysis_data(ticker: str) -> str:
     """Run a full analysis combining Yahoo Finance market data + SEC filings + XBRL financial facts."""
@@ -141,17 +143,95 @@ class SentimentInput(BaseModel):
 @tool(args_schema=SentimentInput)
 def analyze_quarterly_sentiment(ticker: str, num_quarters: int = 4) -> str:
     """
-    Analyze the sentiment of the most recent quarterly reports for a stock
+    Analyze the sentiment of recent quarterly reports for a stock
     and return a concise summary for downstream agents.
     """
     try:
-        result = SentimentEmbeddingProvider.analyze_quarterly_reports(
-            ticker=ticker,
-            num_quarters=num_quarters
+        filings_payload = yf_agent.get_recent_10q_filings(
+            ticker,
+            num_quarters=num_quarters,
+            include_document_html=True,
         )
-        return SentimentEmbeddingProvider.format_for_next_agent(result)
+
+        if not filings_payload.get("success"):
+            return (
+                f"Quarterly sentiment analysis failed for {ticker}: "
+                f"{filings_payload.get('error', 'Unknown error')}"
+            )
+
+        filings = filings_payload.get("filings", [])
+        if not filings:
+            return f"Quarterly sentiment analysis failed for {ticker}: No filings found."
+
+        generation_provider = OpenAIChatGenerationProvider(
+            model="gpt-4o-mini"
+        )
+
+        sentiment_tool = QuarterlySentimentTool(
+            generation_provider=generation_provider
+        )
+
+        results = []
+
+        for filing in filings:
+            # Index each filing separately to avoid mixing chunks across quarters
+            single_filing_payload = {
+                "ticker": ticker,
+                "filings": [filing],
+            }
+
+            rag = FilingRAGService()
+            rag.index_from_prepared_filings(single_filing_payload)
+
+            retrieval = rag.search(
+                "risk factors management's discussion and analysis "
+                "results of operations liquidity outlook",
+                k=12,
+            )
+
+            candidate_chunks = (
+                retrieval.get("results", [])
+                if retrieval.get("success")
+                else []
+            )
+
+            result = sentiment_tool.analyze_single_filing(
+                ticker=ticker,
+                filing=filing,
+                candidate_chunks=candidate_chunks,
+                chunk_count=len(candidate_chunks),
+            )
+            results.append(result)
+
+        if not results:
+            return (
+                f"Quarterly sentiment analysis failed for {ticker}: "
+                f"No sentiment results generated."
+            )
+
+        lines = [f"Quarterly sentiment analysis for {ticker.upper()}:"]
+
+        for q in results:
+            model_error = q.get("model_error")
+            if model_error:
+                lines.append(
+                    f"- {q.get('quarter', 'N/A')} ({q.get('filing_date', 'N/A')}): "
+                    f"failed={model_error}"
+                )
+            else:
+                lines.append(
+                    f"- {q.get('quarter', 'N/A')} ({q.get('filing_date', 'N/A')}): "
+                    f"predicted={q.get('predicted_label', 'Unknown')}, "
+                    f"sections={', '.join(q.get('selected_sections', [])) or 'None'}, "
+                    f"chunks_used={q.get('chunks_used', 0)}"
+                )
+
+        return "\n".join(lines)
+
     except Exception as e:
         return f"Failed to analyze quarterly sentiment for {ticker}: {str(e)}"
+
+#######################################################################################################
 
 # tool for agent 
 tools = [
@@ -415,7 +495,7 @@ if __name__ == "__main__":
     print(tool_trace)
 
     file_path = f"evaluation/{make_report_filename(ticker, report_type='analysis', supervise=supervise)}"
-    trace_path = f"evaluation/{ticker}_tool_trace.txt"
+    trace_path = f"evaluation/{ticker}_tool_trace_{'supervised' if supervise else 'unsupervised'}.txt"
 
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(output)
@@ -424,7 +504,7 @@ if __name__ == "__main__":
         f.write(tool_trace)
 
     print("\n===== RAW RESULT TYPE =====\n")
-    print(type(result))
+    print(type(raw_for_trace))
 
     print("\n===== FINAL OUTPUT =====\n")
     print(repr(output))
