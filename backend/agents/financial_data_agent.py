@@ -1,4 +1,5 @@
 import yfinance as yf
+import numpy as np
 import pandas as pd
 import requests
 import json
@@ -118,60 +119,68 @@ class YahooFinanceAgent:
             logger.warning(f"Error getting current price: {e}")
             return {}
 
-    def _get_historical_data(self, ticker, days = 30):
-      try:
-          end_date = datetime.today()
-          start_date = end_date - timedelta(days=days)
+    def _get_historical_data(self, ticker, days=30):
+        try:
+            end_date = datetime.today()
+            start_date = end_date - timedelta(days=days)
 
-          hist = yf.download(
-              ticker,
-              start=start_date,
-              end=end_date,
-              progress=False,
-              auto_adjust=True
-          )
+            hist = yf.download(
+                ticker,
+                start=start_date,
+                end=end_date,
+                progress=False,
+                auto_adjust=True
+            )
 
-          if isinstance(hist.columns, pd.MultiIndex):
-              hist.columns = hist.columns.get_level_values(0)
+            if isinstance(hist.columns, pd.MultiIndex):
+                hist.columns = hist.columns.get_level_values(0)
 
-          # 🔥 NEW: safer check
-          if hist is None or hist.empty or "Close" not in hist:
-              return {
-                  "start_price": None,
-                  "end_price": None,
-                  "return": None,
-                  "volatility": None
-              }
+            if hist is None or hist.empty or "Close" not in hist.columns:
+                return {
+                    "summary": {
+                        "start_price": None,
+                        "end_price": None,
+                        "total_return_percent": None,
+                        "volatility": None
+                    }
+                }
 
-          close_prices = hist["Close"].dropna().values
+            close_prices = hist["Close"].dropna().astype(float)
 
-          if len(close_prices) < 2:
-              return {
-                  "start_price": None,
-                  "end_price": None,
-                  "return": None,
-                  "volatility": None
-              }
+            if len(close_prices) < 2:
+                return {
+                    "summary": {
+                        "start_price": None,
+                        "end_price": None,
+                        "total_return_percent": None,
+                        "volatility": None
+                    }
+                }
 
-          start_price = float(close_prices[0])
-          end_price = float(close_prices[-1])
-          total_return = (end_price - start_price) / start_price
-          volatility = float(np.std(close_prices) / np.mean(close_prices))
+            start_price = float(close_prices.iloc[0])
+            end_price = float(close_prices.iloc[-1])
+            total_return_percent = ((end_price - start_price) / start_price) * 100.0
+            volatility = float(close_prices.pct_change().dropna().std() * 100.0)
 
-          return {
-              "start_price": start_price,
-              "end_price": end_price,
-              "return": total_return,
-              "volatility": volatility
-          }
+            return {
+                "summary": {
+                    "start_price": round(start_price, 2),
+                    "end_price": round(end_price, 2),
+                    "total_return_percent": round(total_return_percent, 2),
+                    "volatility": round(volatility, 2)
+                }
+            }
 
-      except Exception:
-          return {
-              "start_price": None,
-              "end_price": None,
-              "return": None,
-              "volatility": None
-          }
+        except Exception as e:
+            logger.warning(f"Error getting historical data for {ticker}: {e}")
+            return {
+                "summary": {
+                    "start_price": None,
+                    "end_price": None,
+                    "total_return_percent": None,
+                    "volatility": None
+                }
+        }
 
     def _get_key_metrics(self, stock) -> Dict:
         """Extract key financial metrics."""
@@ -598,26 +607,27 @@ class YahooFinanceAgent:
 
       if stock_data.get("success"):
           km = stock_data.get("key_metrics", {})
-          hd = stock_data.get("historical_data", {})
-          ad = stock_data.get("analyst_data", {})
+          hd = stock_data.get("historical_data", {}).get("summary", {})
+          ad = stock_data.get("analyst_recommendations", {})
 
           pe = km.get("pe_ratio")
-          ret = hd.get("return")
-          rating = ad.get("recommendation") or "neutral"
+          ret = hd.get("total_return_percent")
+          rating = (ad.get("recommendation_key") or "Neutral").lower()
 
           # Simple investment logic
-          if ret and ret > 0.05 and rating in ["buy", "strong_buy"]:
-              recommendation = "INVEST"
-          elif ret and ret < -0.05:
-              recommendation = "PASS"
+          if ret is not None and ret > 5 and rating in ["buy", "strong buy"]:
+            recommendation = "INVEST"
+          elif ret is not None and ret < -5:
+            recommendation = "PASS"
           else:
-              recommendation = "HOLD / NEUTRAL"
+            recommendation = "HOLD / NEUTRAL"
 
           exec_summary = (
-              f"{ticker} shows a {round(ret*100,2) if ret else 'N/A'}% return over the past month, "
-              f"with a P/E ratio of {pe}. Analyst sentiment is '{rating}'. "
-              f"Based on recent performance and market sentiment, the recommendation is: {recommendation}."
-          )
+            f"{ticker} shows a {ret if ret is not None else 'N/A'}% return over the past month, "
+            f"with a P/E ratio of {pe}. Analyst sentiment is '{rating}'. "
+            f"Based on recent performance and market sentiment, the recommendation is: {recommendation}."
+        )
+          
       overview_words = overview.split()
       overview_300 = " ".join(overview_words[:300])
 
