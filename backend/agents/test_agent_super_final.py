@@ -59,7 +59,7 @@ class FinancialRatiosInput(BaseModel):
 @tool(args_schema=FinancialRatiosInput)
 def get_financial_ratios(ticker: str) -> str:
     """Fetch key financial ratios for the given ticker."""
-    data = yf_agent.get_financial_ratios(ticker)
+    data = yf_agent.get_financial_facts(ticker)
     return yf_agent.format_ratios_for_next_agent(data)
 
 
