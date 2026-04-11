@@ -1,0 +1,19 @@
+
+    === Evaluation of unsupervised report FOR goog ===
+
+    Faithfulness Score: 1.0
+
+    Relevancy Score: 0.8192771084337349
+
+    === Evaluation of supervised report FOR goog ===
+
+    Faithfulness Score: 1.0
+
+    Relevancy Score: 1.0
+
+    Pairwise Score: 0.6
+
+    Reasoning: The actual output is more polished and well-structured, with clear headings, bullet points, and a professional investment-analysis tone. However, it is not better on all required dimensions: it is substantially longer and less concise than the expected output, and it introduces several details not in the expected version (e.g., Wiz acquisition, Epic Games, $1.4 billion/privacy settlement, $3.5 billion fine, TAC figures), which makes it less tightly aligned to the comparison criteria. It is strong on professionalism and formatting, but not clearly more concise overall.
+
+
+

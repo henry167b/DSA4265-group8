@@ -1,0 +1,18 @@
+
+    === Evaluation of unsupervised report FOR meta ===
+
+    Faithfulness Score: 1.0
+
+    Relevancy Score: 0.9746835443037974
+
+    === Evaluation of supervised report FOR meta ===
+
+    Faithfulness Score: 1.0
+
+    Relevancy Score: 0.904
+
+    Pairwise Score: 0.6
+
+    Reasoning: The actual output is professionally written and well structured, with clear headings, bullet points, and a balanced investment view that matches the expected output’s overall content. It includes the key test case details such as Meta’s current price, valuation multiples, market cap, profitability, and major risks like AI spending, regulation, privacy, and advertiser demand. However, it is much longer and less concise than the expected output, with some added commentary and extra detail that does not improve brevity, so it only partially satisfies the preference for a more concise response.
+
+

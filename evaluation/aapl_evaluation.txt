@@ -1,0 +1,18 @@
+
+    === Evaluation of unsupervised report FOR aapl ===
+
+    Faithfulness Score: 1.0
+
+    Relevancy Score: 1.0
+
+    === Evaluation of supervised report FOR aapl ===
+
+    Faithfulness Score: 1.0
+
+    Relevancy Score: 1.0
+
+    Pairwise Score: 0.6
+
+    Reasoning: The actual output is broadly aligned with the expected output: it uses a polished, businesslike tone, clear sectioning, and covers the same Apple valuation, profitability, risks, and neutral/hold conclusion. However, it is not clearly more concise than the expected output, and it adds a bit more detail and repetition in places, so it does not satisfy the 'better overall' standard on concision despite being professional and well organized.
+
+
