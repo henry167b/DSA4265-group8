@@ -14,6 +14,8 @@ try:
 except ImportError:
     YahooFinanceAgent = None
 
+from .supervisor_framework import OutputSupervisor, SupervisedAgentRunner
+
 __all__ = [
     'prepare_filing_html_for_chunking',
     'FilingRAGService',
@@ -24,6 +26,8 @@ __all__ = [
     'build_generation_context',
     'order_retrieved_chunks_for_generation',
     'resolve_openai_api_key',
+    'OutputSupervisor',
+    'SupervisedAgentRunner',
 ]
 
 if YahooFinanceAgent is not None:
