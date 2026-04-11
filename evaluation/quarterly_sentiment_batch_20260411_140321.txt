@@ -1,0 +1,674 @@
+
+Running modular tool integration batch test for AAPL, NVDA, GOOG, META, TSLA (4 quarters each)
+========================================================================================================================
+
+Ticker: AAPL
+------------------------------------------------------------------------------------------------------------------------
+Quarter: 2026 Q1
+Filing Date: 2026-01-30
+Predicted Label: Bullish
+Actual Label: Neutral
+Realized % Change: 0.48
+Chunks Used: 3
+Selected Sections: ['RISK', 'MDA']
+Model Error: None
+Price Error: None
+Chunk 1 | ID: 0000320193-26-000006:prose:1 | Source: prose | Section: Item 1A. Risk Factors | Len: 413
+Scores | score: 0.25941975040500953 | rerank: None | hybrid: 0.25941975040500953 | dense: 0.5502105282988463 | sparse: 6.927880641455009
+Selection Debug | Bucket: RISK | Rank in Section: 1 | Adjusted Score: 0.2594
+Reasons: base_score=0.2594; adjusted_score=0.2594
+Chunk Preview: [Item 1A. Risk Factors] The Company’s business, reputation, results of operations, financial condition and stock price can be materially and adversely affected by a number of factors, whether currently known or unknown, including those desc
+--------------------------------------------------------------------------------
+Chunk 2 | ID: 0000320193-26-000006:prose:0#part2 | Source: prose | Section: Item 2. Management’s Discussion and Analysis of Financial Condition and Results of Operations | Len: 2786
+Scores | score: 0.25273617511520735 | rerank: None | hybrid: 0.25273617511520735 | dense: 0.3877937369542961 | sparse: 1.3253732085742904
+Selection Debug | Bucket: MDA | Rank in Section: 1 | Adjusted Score: 1.0527
+Reasons: base_score=0.2527; mda_signal_boost=+0.8; adjusted_score=1.0527
+Chunk Preview: in response, and the overall magnitude and duration of these measures. Trade and other international disputes can have an adverse impact on the overall macroeconomic environment and result in shifts and reductions in consumer spending and n
+--------------------------------------------------------------------------------
+Chunk 3 | ID: 0000320193-26-000006:prose:2 | Source: prose | Section: Item 2. Unregistered Sales of Equity Securities and Use of Proceeds | Len: 778
+Scores | score: 0.2535454072339318 | rerank: None | hybrid: 0.2535454072339318 | dense: 0.32549534481019715 | sparse: 0.6036940906210058
+Selection Debug | Bucket: MDA | Rank in Section: 2 | Adjusted Score: 0.2535
+Reasons: base_score=0.2535; adjusted_score=0.2535
+Chunk Preview: [Item 2. Unregistered Sales of Equity Securities and Use of Proceeds] Purchases of Equity Securities by the Issuer and Affiliated Purchasers Share repurchase activity during the three months ended December 27, 2025, was as follows (in milli
+--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+Quarter: 2025 Q3
+Filing Date: 2025-08-01
+Predicted Label: Bullish
+Actual Label: Bullish
+Realized % Change: 34.26
+Chunks Used: 3
+Selected Sections: ['RISK', 'MDA']
+Model Error: None
+Price Error: None
+Chunk 1 | ID: 0000320193-25-000073:prose:1 | Source: prose | Section: Item 1A. Risk Factors | Len: 1003
+Scores | score: 0.25992378266307403 | rerank: None | hybrid: 0.25992378266307403 | dense: 0.5296219182060861 | sparse: 7.298041082890661
+Selection Debug | Bucket: RISK | Rank in Section: 1 | Adjusted Score: 0.2599
+Reasons: base_score=0.2599; adjusted_score=0.2599
+Chunk Preview: [Item 1A. Risk Factors] The Company’s business, reputation, results of operations, financial condition and stock price can be affected by a number of factors, whether currently known or unknown, including those described in Part I, Item 1A 
+--------------------------------------------------------------------------------
+Chunk 2 | ID: 0000320193-25-000073:prose:0#part2 | Source: prose | Section: Item 2. Management’s Discussion and Analysis of Financial Condition and Results of Operations | Len: 3363
+Scores | score: 0.2524881592421915 | rerank: None | hybrid: 0.2524881592421915 | dense: 0.3908308316251787 | sparse: 1.305889915034911
+Selection Debug | Bucket: MDA | Rank in Section: 1 | Adjusted Score: 1.0525
+Reasons: base_score=0.2525; mda_signal_boost=+0.8; adjusted_score=1.0525
+Chunk Preview: in response, and the overall magnitude and duration of these measures. Trade and other international disputes can have an adverse impact on the overall macroeconomic environment and result in shifts and reductions in consumer spending and n
+--------------------------------------------------------------------------------
+Chunk 3 | ID: 0000320193-25-000073:prose:2 | Source: prose | Section: Item 2. Unregistered Sales of Equity Securities and Use of Proceeds | Len: 906
+Scores | score: 0.2535454072339318 | rerank: None | hybrid: 0.2535454072339318 | dense: 0.3492360118532409 | sparse: 0.6425908107905777
+Selection Debug | Bucket: MDA | Rank in Section: 2 | Adjusted Score: 0.2535
+Reasons: base_score=0.2535; adjusted_score=0.2535
+Chunk Preview: [Item 2. Unregistered Sales of Equity Securities and Use of Proceeds] Purchases of Equity Securities by the Issuer and Affiliated Purchasers Share repurchase activity during the three months ended June 28, 2025, was as follows (in millions,
+--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+Quarter: 2025 Q2
+Filing Date: 2025-05-02
+Predicted Label: Neutral
+Actual Label: Neutral
+Realized % Change: 1.21
+Chunks Used: 4
+Selected Sections: ['RISK', 'MDA']
+Model Error: None
+Price Error: None
+Chunk 1 | ID: 0000320193-25-000057:prose:1#part2 | Source: prose | Section: Item 1A. Risk Factors | Len: 5695
+Scores | score: 0.257602453770156 | rerank: None | hybrid: 0.257602453770156 | dense: 0.4782949409562143 | sparse: 3.70901850243183
+Selection Debug | Bucket: RISK | Rank in Section: 1 | Adjusted Score: 0.2576
+Reasons: base_score=0.2576; adjusted_score=0.2576
+Chunk Preview: or with more intense effects. In addition, the Company’s and its suppliers’ operations and facilities are subject to the risk of interruption by fire, power shortages, nuclear power plant accidents and other industrial accidents, terrorist 
+--------------------------------------------------------------------------------
+Chunk 2 | ID: 0000320193-25-000057:prose:1#part1 | Source: prose | Section: Item 1A. Risk Factors | Len: 5957
+Scores | score: 0.25531199494876117 | rerank: None | hybrid: 0.25531199494876117 | dense: 0.44541631295701933 | sparse: 5.2775432505835
+Selection Debug | Bucket: RISK | Rank in Section: 2 | Adjusted Score: 0.2553
+Reasons: base_score=0.2553; adjusted_score=0.2553
+Chunk Preview: [Item 1A. Risk Factors] The Company’s business, reputation, results of operations, financial condition and stock price can be affected by a number of factors, whether currently known or unknown, including those described in Part I, Item 1A 
+--------------------------------------------------------------------------------
+Chunk 3 | ID: 0000320193-25-000057:prose:0#part2 | Source: prose | Section: Item 2. Management’s Discussion and Analysis of Financial Condition and Results of Operations | Len: 3841
+Scores | score: 0.24645426258329478 | rerank: None | hybrid: 0.24645426258329478 | dense: 0.3922426735430681 | sparse: 0.9676922868830338
+Selection Debug | Bucket: MDA | Rank in Section: 1 | Adjusted Score: 1.0465
+Reasons: base_score=0.2465; mda_signal_boost=+0.8; adjusted_score=1.0465
+Chunk Preview: in response, and the overall magnitude and duration of these measures. Trade and other international disputes can have an adverse impact on the overall macroeconomic environment and result in shifts and reductions in consumer spending and n
+--------------------------------------------------------------------------------
+Chunk 4 | ID: 0000320193-25-000057:prose:2 | Source: prose | Section: Item 2. Unregistered Sales of Equity Securities and Use of Proceeds | Len: 979
+Scores | score: 0.2473228103863349 | rerank: None | hybrid: 0.2473228103863349 | dense: 0.32765529466269033 | sparse: 0.46433647680552104
+Selection Debug | Bucket: MDA | Rank in Section: 2 | Adjusted Score: 0.2473
+Reasons: base_score=0.2473; adjusted_score=0.2473
+Chunk Preview: [Item 2. Unregistered Sales of Equity Securities and Use of Proceeds] Purchases of Equity Securities by the Issuer and Affiliated Purchasers Share repurchase activity during the three months ended March 29, 2025 was as follows (in millions,
+--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+Quarter: 2025 Q1
+Filing Date: 2025-01-31
+Predicted Label: Neutral
+Actual Label: Neutral
+Realized % Change: -9.51
+Chunks Used: 4
+Selected Sections: ['RISK', 'MDA']
+Model Error: None
+Price Error: None
+Chunk 1 | ID: 0000320193-25-000008:prose:1#part1 | Source: prose | Section: Item 1A. Risk Factors | Len: 5963
+Scores | score: 0.2581392750119614 | rerank: None | hybrid: 0.2581392750119614 | dense: 0.39690987776438014 | sparse: 7.291839097290685
+Selection Debug | Bucket: RISK | Rank in Section: 1 | Adjusted Score: 0.2581
+Reasons: base_score=0.2581; adjusted_score=0.2581
+Chunk Preview: [Item 1A. Risk Factors] The Company’s business, reputation, results of operations, financial condition and stock price can be affected by a number of factors, whether currently known or unknown, including those described in Part I, Item 1A 
+--------------------------------------------------------------------------------
+Chunk 2 | ID: 0000320193-25-000008:prose:1#part2 | Source: prose | Section: Item 1A. Risk Factors | Len: 3511
+Scores | score: 0.2540471513253771 | rerank: None | hybrid: 0.2540471513253771 | dense: 0.3503118515880073 | sparse: 4.961120150358052
+Selection Debug | Bucket: RISK | Rank in Section: 2 | Adjusted Score: -2.246
+Reasons: base_score=0.2540; boilerplate_penalty=-2.5; adjusted_score=-2.2460
+Chunk Preview: nged by the Commission and may be challenged further by private litigants. The DMA provides for significant fines and penalties for noncompliance, and other jurisdictions may seek to require the Company to make changes to its business. Whil
+--------------------------------------------------------------------------------
+Chunk 3 | ID: 0000320193-25-000008:prose:2 | Source: prose | Section: Item 2. Unregistered Sales of Equity Securities and Use of Proceeds | Len: 823
+Scores | score: 0.25307300776959685 | rerank: None | hybrid: 0.25307300776959685 | dense: 0.3365082723744322 | sparse: 0.8127168017916305
+Selection Debug | Bucket: MDA | Rank in Section: 1 | Adjusted Score: 0.2531
+Reasons: base_score=0.2531; adjusted_score=0.2531
+Chunk Preview: [Item 2. Unregistered Sales of Equity Securities and Use of Proceeds] Purchases of Equity Securities by the Issuer and Affiliated Purchasers Share repurchase activity during the three months ended December 28, 2024 was as follows (in millio
+--------------------------------------------------------------------------------
+Chunk 4 | ID: 0000320193-25-000008:prose:0#part2 | Source: prose | Section: Item 2. Management’s Discussion and Analysis of Financial Condition and Results of Operations | Len: 595
+Scores | score: 0.2473634004884005 | rerank: None | hybrid: 0.2473634004884005 | dense: 0.278028091688371 | sparse: 0.3797433754629703
+Selection Debug | Bucket: MDA | Rank in Section: 2 | Adjusted Score: 0.2474
+Reasons: base_score=0.2474; adjusted_score=0.2474
+Chunk Preview: 24 due primarily to higher net sales of laptops. iPad iPad net sales increased during the first quarter of 2025 compared to the same quarter in 2024 due primarily to higher net sales of iPad Air ® . Wearables, Home and Accessories Wearables
+--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+Short Evaluation (Predicted vs Actual):
+------------------------------------------------------------------------------------------------------------------------
+2026 Q1: predicted=Bullish | actual=Neutral | evaluation=Slightly Wrong
+2025 Q3: predicted=Bullish | actual=Bullish | evaluation=Correct
+2025 Q2: predicted=Neutral | actual=Neutral | evaluation=Correct
+2025 Q1: predicted=Neutral | actual=Neutral | evaluation=Correct
+------------------------------------------------------------------------------------------------------------------------
+Ticker Summary (AAPL): Correct=3, Slightly Wrong=1, Wrong=0, Unknown=0
+Rule: Slightly Wrong = 1-level gap; Wrong = 2-level gap (Bearish vs Bullish).
+========================================================================================================================
+
+Ticker: NVDA
+------------------------------------------------------------------------------------------------------------------------
+Quarter: 2025 Q4
+Filing Date: 2025-11-19
+Predicted Label: Bearish
+Actual Label: Neutral
+Realized % Change: -0.83
+Chunks Used: 4
+Selected Sections: ['RISK', 'MDA']
+Model Error: None
+Price Error: None
+Chunk 1 | ID: 0001045810-25-000230:prose:1#part3 | Source: prose | Section: Item 1A. Risk Factors | Len: 5901
+Scores | score: 0.25186597509509157 | rerank: None | hybrid: 0.25186597509509157 | dense: 0.3831167992536591 | sparse: 6.97895627228905
+Selection Debug | Bucket: RISK | Rank in Section: 1 | Adjusted Score: 0.2519
+Reasons: base_score=0.2519; adjusted_score=0.2519
+Chunk Preview: ld multiple product architectures at the same time, these transitions are difficult, may impair our ability to predict demand and impact our supply mix, and may cause us to incur additional costs. Demand estimates for our products, applicat
+--------------------------------------------------------------------------------
+Chunk 2 | ID: 0001045810-25-000230:prose:1#part1 | Source: prose | Section: Item 1A. Risk Factors | Len: 5940
+Scores | score: 0.24496220505870014 | rerank: None | hybrid: 0.24496220505870014 | dense: 0.343804265987262 | sparse: 5.804766347142891
+Selection Debug | Bucket: RISK | Rank in Section: 2 | Adjusted Score: 0.245
+Reasons: base_score=0.2450; adjusted_score=0.2450
+Chunk Preview: [Item 1A. Risk Factors] Other than the risk factors listed below, there have been no material changes from the risk factors previously described under Item 1A of our Annual Report on Form 10-K for the fiscal year ended January 26, 2025 and 
+--------------------------------------------------------------------------------
+Chunk 3 | ID: 0001045810-25-000230:prose:0#part2 | Source: prose | Section: Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations | Len: 5874
+Scores | score: 0.24421359079609156 | rerank: None | hybrid: 0.24421359079609156 | dense: 0.375644956117193 | sparse: 6.67323147417112
+Selection Debug | Bucket: MDA | Rank in Section: 1 | Adjusted Score: 1.0442
+Reasons: base_score=0.2442; mda_signal_boost=+0.8; adjusted_score=1.0442
+Chunk Preview: g our revenue timing and supply chain expenses. In April 2025, the U.S. government, or USG, informed us that a license is required for exports of our H20 product into the China market. As a result of these new requirements, we incurred a $4
+--------------------------------------------------------------------------------
+Chunk 4 | ID: 0001045810-25-000230:prose:0#part3 | Source: prose | Section: Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations | Len: 867
+Scores | score: 0.23730838125232678 | rerank: None | hybrid: 0.23730838125232678 | dense: 0.4305931385709541 | sparse: 0.3779851155851721
+Selection Debug | Bucket: MDA | Rank in Section: 2 | Adjusted Score: 1.0373
+Reasons: base_score=0.2373; mda_signal_boost=+0.8; adjusted_score=1.0373
+Chunk Preview: solutions. Gross margin increased sequentially as Blackwell ramped with an improved mix and cost structure. Operating expenses were up 36% from a year ago and up 8% sequentially. The increases were primarily driven by compute and infrastruc
+--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+Quarter: 2025 Q3
+Filing Date: 2025-08-27
+Predicted Label: Bearish
+Actual Label: Neutral
+Realized % Change: -2.08
+Chunks Used: 4
+Selected Sections: ['RISK', 'MDA']
+Model Error: None
+Price Error: None
+Chunk 1 | ID: 0001045810-25-000209:prose:1#part4 | Source: prose | Section: Item 1A. Risk Factors | Len: 5979
+Scores | score: 0.24285972595762362 | rerank: None | hybrid: 0.24285972595762362 | dense: 0.2987668693481865 | sparse: 2.4775692732090007
+Selection Debug | Bucket: RISK | Rank in Section: 1 | Adjusted Score: 0.2429
+Reasons: base_score=0.2429; adjusted_score=0.2429
+Chunk Preview: which could also substantially reduce our revenue. Regulators in China have inquired about our sales and efforts to supply the China market and our fulfillment of the commitments we entered at the close of our Mellanox acquisition. For exam
+--------------------------------------------------------------------------------
+Chunk 2 | ID: 0001045810-25-000209:prose:1#part5 | Source: prose | Section: Item 1A. Risk Factors | Len: 5870
+Scores | score: 0.24270731569543486 | rerank: None | hybrid: 0.24270731569543486 | dense: 0.28584606212637004 | sparse: 3.121728301555745
+Selection Debug | Bucket: RISK | Rank in Section: 2 | Adjusted Score: 0.2427
+Reasons: base_score=0.2427; adjusted_score=0.2427
+Chunk Preview: ts more cumbersome and less certain and encourage customers in China to pursue alternatives to our products, including semiconductor suppliers based in China, Europe, and Israel. In August 2025, the USG granted licenses that would allow us 
+--------------------------------------------------------------------------------
+Chunk 3 | ID: 0001045810-25-000209:prose:0#part2 | Source: prose | Section: Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations | Len: 5949
+Scores | score: 0.24880642762549032 | rerank: None | hybrid: 0.24880642762549032 | dense: 0.3558615842251626 | sparse: 7.438369251149362
+Selection Debug | Bucket: MDA | Rank in Section: 1 | Adjusted Score: 1.0488
+Reasons: base_score=0.2488; mda_signal_boost=+0.8; adjusted_score=1.0488
+Chunk Preview: urations may create challenges in managing supply and demand. This could result in revenue volatility, quality or production issues, increased inventory provisions, warranty costs, or product delays. Customers may postpone purchasing existi
+--------------------------------------------------------------------------------
+Chunk 4 | ID: 0001045810-25-000209:prose:0#part3 | Source: prose | Section: Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations | Len: 1027
+Scores | score: 0.24158392798269723 | rerank: None | hybrid: 0.24158392798269723 | dense: 0.3873320287062734 | sparse: 0.48689641030717434
+Selection Debug | Bucket: MDA | Rank in Section: 2 | Adjusted Score: 1.0416
+Reasons: base_score=0.2416; mda_signal_boost=+0.8; adjusted_score=1.0416
+Chunk Preview: -driving platforms. Gross margin decreased from a year ago as our Blackwell revenue consists primarily of full-scale datacenter systems compared to Hopper HGX systems last year. Gross margin increased sequentially as the prior quarter inclu
+--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+Quarter: 2025 Q2
+Filing Date: 2025-05-28
+Predicted Label: Bullish
+Actual Label: Bullish
+Realized % Change: 34.84
+Chunks Used: 4
+Selected Sections: ['RISK', 'MDA']
+Model Error: None
+Price Error: None
+Chunk 1 | ID: 0001045810-25-000116:prose:1#part1 | Source: prose | Section: Item 1A. Risk Factors | Len: 5962
+Scores | score: 0.24926153875218432 | rerank: None | hybrid: 0.24926153875218432 | dense: 0.347546947708597 | sparse: 5.634615054075111
+Selection Debug | Bucket: RISK | Rank in Section: 1 | Adjusted Score: 0.2493
+Reasons: base_score=0.2493; adjusted_score=0.2493
+Chunk Preview: [Item 1A. Risk Factors] Other than the risk factors listed below, there have been no material changes from the risk factors previously described under Item 1A of our Annual Report on Form 10-K for the fiscal year ended January 26, 2025. Pur
+--------------------------------------------------------------------------------
+Chunk 2 | ID: 0001045810-25-000116:prose:1#part4 | Source: prose | Section: Item 1A. Risk Factors | Len: 5902
+Scores | score: 0.24166427245123312 | rerank: None | hybrid: 0.24166427245123312 | dense: 0.30692688829926107 | sparse: 2.484354037405404
+Selection Debug | Bucket: RISK | Rank in Section: 2 | Adjusted Score: 0.2417
+Reasons: base_score=0.2417; adjusted_score=0.2417
+Chunk Preview: other retaliatory actions, which could have an adverse effect on our business plans or impact the timing of our shipments. Additionally, changes in the public perception of governments in the regions where we operate or plan to operate coul
+--------------------------------------------------------------------------------
+Chunk 3 | ID: 0001045810-25-000116:prose:0#part2 | Source: prose | Section: Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations | Len: 5944
+Scores | score: 0.2539949491267849 | rerank: None | hybrid: 0.2539949491267849 | dense: 0.3510575578362329 | sparse: 9.58191357747733
+Selection Debug | Bucket: MDA | Rank in Section: 1 | Adjusted Score: 1.054
+Reasons: base_score=0.2540; mda_signal_boost=+0.8; adjusted_score=1.0540
+Chunk Preview: he interconnect bandwidth of a chip, and the memory bandwidth of a chip. We may be unable to create a competitive product for China’s data center market that receives approval from the USG. In that event, we would effectively be foreclosed 
+--------------------------------------------------------------------------------
+Chunk 4 | ID: 0001045810-25-000116:prose:0#part3 | Source: prose | Section: Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations | Len: 2597
+Scores | score: 0.2363602605573352 | rerank: None | hybrid: 0.2363602605573352 | dense: 0.3890389622701971 | sparse: 0.4228389573782454
+Selection Debug | Bucket: MDA | Rank in Section: 2 | Adjusted Score: 1.0364
+Reasons: base_score=0.2364; mda_signal_boost=+0.8; adjusted_score=1.0364
+Chunk Preview: vely affect our future revenue. Revenue was $44.1 billion, up 69% from a year ago and up 12% sequentially. Data Center revenue was $39.1 billion, up 73% from a year ago and up 10% sequentially. The strong year-on-year and sequential growth 
+--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+Quarter: 2024 Q4
+Filing Date: 2024-11-20
+Predicted Label: Neutral
+Actual Label: Neutral
+Realized % Change: -4.44
+Chunks Used: 4
+Selected Sections: ['RISK', 'MDA']
+Model Error: None
+Price Error: None
+Chunk 1 | ID: 0001045810-24-000316:prose:1#part1 | Source: prose | Section: Item 1A. Risk Factors | Len: 5994
+Scores | score: 0.2494705701477523 | rerank: None | hybrid: 0.2494705701477523 | dense: 0.33680699836173966 | sparse: 5.307758188895104
+Selection Debug | Bucket: RISK | Rank in Section: 1 | Adjusted Score: 0.2495
+Reasons: base_score=0.2495; adjusted_score=0.2495
+Chunk Preview: [Item 1A. Risk Factors] Other than the risk factors listed below, there have been no material changes from the risk factors previously described under Item 1A of our Annual Report on Form 10-K for the fiscal year ended January 28, 2024 and 
+--------------------------------------------------------------------------------
+Chunk 2 | ID: 0001045810-24-000316:prose:1#part2 | Source: prose | Section: Item 1A. Risk Factors | Len: 5967
+Scores | score: 0.24576172986769204 | rerank: None | hybrid: 0.24576172986769204 | dense: 0.34160548730455903 | sparse: 3.0268160542046507
+Selection Debug | Bucket: RISK | Rank in Section: 2 | Adjusted Score: 0.2458
+Reasons: base_score=0.2458; adjusted_score=0.2458
+Chunk Preview: e products simultaneously as our channel partners prepare to ship and support new products. We may be in various stages of transitioning the architectures of our Data Center, Gaming, Professional Visualization and Automotive products. The c
+--------------------------------------------------------------------------------
+Chunk 3 | ID: 0001045810-24-000316:prose:0#part3 | Source: prose | Section: Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations | Len: 5351
+Scores | score: 0.25420896054421344 | rerank: None | hybrid: 0.25420896054421344 | dense: 0.40215407525097246 | sparse: 6.027265664848617
+Selection Debug | Bucket: MDA | Rank in Section: 1 | Adjusted Score: 1.0542
+Reasons: base_score=0.2542; mda_signal_boost=+0.8; adjusted_score=1.0542
+Chunk Preview: may impose restrictions on the import and sale of products that incorporate technologies developed or manufactured in whole or in part in China. For example, the USG is considering restrictions on the import and sale of certain automotive p
+--------------------------------------------------------------------------------
+Chunk 4 | ID: 0001045810-24-000316:prose:0#part2 | Source: prose | Section: Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations | Len: 5913
+Scores | score: 0.23584970906992514 | rerank: None | hybrid: 0.23584970906992514 | dense: 0.28309619424057797 | sparse: 3.0224380819763503
+Selection Debug | Bucket: MDA | Rank in Section: 2 | Adjusted Score: 1.0358
+Reasons: base_score=0.2358; mda_signal_boost=+0.8; adjusted_score=1.0358
+Chunk Preview: ve incurred and may in the future incur inventory provisions or impairments if our inventory or supply or capacity commitments exceed demand for our products or demand declines. Product Transitions and New Product Introductions Product tran
+--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+Short Evaluation (Predicted vs Actual):
+------------------------------------------------------------------------------------------------------------------------
+2025 Q4: predicted=Bearish | actual=Neutral | evaluation=Slightly Wrong
+2025 Q3: predicted=Bearish | actual=Neutral | evaluation=Slightly Wrong
+2025 Q2: predicted=Bullish | actual=Bullish | evaluation=Correct
+2024 Q4: predicted=Neutral | actual=Neutral | evaluation=Correct
+------------------------------------------------------------------------------------------------------------------------
+Ticker Summary (NVDA): Correct=2, Slightly Wrong=2, Wrong=0, Unknown=0
+Rule: Slightly Wrong = 1-level gap; Wrong = 2-level gap (Bearish vs Bullish).
+========================================================================================================================
+
+Ticker: GOOG
+------------------------------------------------------------------------------------------------------------------------
+Quarter: 2025 Q4
+Filing Date: 2025-10-30
+Predicted Label: Neutral
+Actual Label: Bullish
+Realized % Change: 19.37
+Chunks Used: 3
+Selected Sections: ['RISK', 'MDA']
+Model Error: None
+Price Error: None
+Chunk 1 | ID: 0001652044-25-000091:prose:1 | Source: prose | Section: ITEM 1A. RISK FACTORS | Len: 588
+Scores | score: 0.2601881930279603 | rerank: None | hybrid: 0.2601881930279603 | dense: 0.5231283414160658 | sparse: 6.002078298886899
+Selection Debug | Bucket: RISK | Rank in Section: 1 | Adjusted Score: -2.2398
+Reasons: base_score=0.2602; boilerplate_penalty=-2.5; adjusted_score=-2.2398
+Chunk Preview: [ITEM 1A. RISK FACTORS] Our operations and financial results are subject to various risks and uncertainties, including but not limited to those described in Part I, Item 1A, "Risk Factors" in our Annual Report on Form 10-K for the year ende
+--------------------------------------------------------------------------------
+Chunk 2 | ID: 0001652044-25-000091:prose:0#part2 | Source: prose | Section: ITEM 2. MANAGEMENT’S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS | Len: 3802
+Scores | score: 0.2512480798771121 | rerank: None | hybrid: 0.2512480798771121 | dense: 0.2638648794431024 | sparse: 1.6018142885556474
+Selection Debug | Bucket: MDA | Rank in Section: 1 | Adjusted Score: 1.0512
+Reasons: base_score=0.2512; mda_signal_boost=+0.8; adjusted_score=1.0512
+Chunk Preview: of the following: • consumer subscriptions, which primarily include revenues from YouTube services, such as YouTube TV, YouTube Music and Premium, and NFL Sunday Ticket, as well as Google One; • platforms, which primarily include revenues f
+--------------------------------------------------------------------------------
+Chunk 3 | ID: 0001652044-25-000091:prose:2 | Source: prose | Section: ITEM 2. UNREGISTERED SALES OF EQUITY SECURITIES AND USE OF PROCEEDS | Len: 830
+Scores | score: 0.2545126822542872 | rerank: None | hybrid: 0.2545126822542872 | dense: 0.3162542338204895 | sparse: 1.9854085273142548
+Selection Debug | Bucket: MDA | Rank in Section: 2 | Adjusted Score: 0.2545
+Reasons: base_score=0.2545; adjusted_score=0.2545
+Chunk Preview: [ITEM 2. UNREGISTERED SALES OF EQUITY SECURITIES AND USE OF PROCEEDS] Issuer Purchases of Equity Securities The following table presents information with respect to Alphabet's repurchases of Class A and Class C stock during the quarter ende
+--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+Quarter: 2025 Q3
+Filing Date: 2025-07-24
+Predicted Label: Neutral
+Actual Label: Bullish
+Realized % Change: 30.83
+Chunks Used: 3
+Selected Sections: ['RISK', 'MDA']
+Model Error: None
+Price Error: None
+Chunk 1 | ID: 0001652044-25-000062:prose:1 | Source: prose | Section: ITEM 1A. RISK FACTORS | Len: 588
+Scores | score: 0.2601881930279603 | rerank: None | hybrid: 0.2601881930279603 | dense: 0.5232257029982208 | sparse: 6.002913432078315
+Selection Debug | Bucket: RISK | Rank in Section: 1 | Adjusted Score: -2.2398
+Reasons: base_score=0.2602; boilerplate_penalty=-2.5; adjusted_score=-2.2398
+Chunk Preview: [ITEM 1A. RISK FACTORS] Our operations and financial results are subject to various risks and uncertainties, including but not limited to those described in Part I, Item 1A, "Risk Factors" in our Annual Report on Form 10-K for the year ende
+--------------------------------------------------------------------------------
+Chunk 2 | ID: 0001652044-25-000062:prose:0#part2 | Source: prose | Section: ITEM 2. MANAGEMENT’S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS | Len: 3808
+Scores | score: 0.251496095750128 | rerank: None | hybrid: 0.251496095750128 | dense: 0.2676217133634517 | sparse: 1.6009808464368778
+Selection Debug | Bucket: MDA | Rank in Section: 1 | Adjusted Score: 1.0515
+Reasons: base_score=0.2515; mda_signal_boost=+0.8; adjusted_score=1.0515
+Chunk Preview: of the following: • consumer subscriptions, which primarily include revenues from YouTube services, such as YouTube TV, YouTube Music and Premium, and NFL Sunday Ticket, as well as Google One; • platforms, which primarily include revenues f
+--------------------------------------------------------------------------------
+Chunk 3 | ID: 0001652044-25-000062:prose:2 | Source: prose | Section: ITEM 2. UNREGISTERED SALES OF EQUITY SECURITIES AND USE OF PROCEEDS | Len: 825
+Scores | score: 0.2542646663812713 | rerank: None | hybrid: 0.2542646663812713 | dense: 0.3102386600976093 | sparse: 1.9858097855196017
+Selection Debug | Bucket: MDA | Rank in Section: 2 | Adjusted Score: 0.2543
+Reasons: base_score=0.2543; adjusted_score=0.2543
+Chunk Preview: [ITEM 2. UNREGISTERED SALES OF EQUITY SECURITIES AND USE OF PROCEEDS] Issuer Purchases of Equity Securities The following table presents information with respect to Alphabet's repurchases of Class A and Class C stock during the quarter ende
+--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+Quarter: 2025 Q2
+Filing Date: 2025-04-25
+Predicted Label: Neutral
+Actual Label: Bullish
+Realized % Change: 18.05
+Chunks Used: 3
+Selected Sections: ['RISK', 'MDA']
+Model Error: None
+Price Error: None
+Chunk 1 | ID: 0001652044-25-000043:prose:1 | Source: prose | Section: ITEM 1A. RISK FACTORS | Len: 588
+Scores | score: 0.2601881930279603 | rerank: None | hybrid: 0.2601881930279603 | dense: 0.5232257029982208 | sparse: 6.001660071457044
+Selection Debug | Bucket: RISK | Rank in Section: 1 | Adjusted Score: -2.2398
+Reasons: base_score=0.2602; boilerplate_penalty=-2.5; adjusted_score=-2.2398
+Chunk Preview: [ITEM 1A. RISK FACTORS] Our operations and financial results are subject to various risks and uncertainties, including but not limited to those described in Part I, Item 1A, "Risk Factors" in our Annual Report on Form 10-K for the year ende
+--------------------------------------------------------------------------------
+Chunk 2 | ID: 0001652044-25-000043:prose:0#part2 | Source: prose | Section: ITEM 2. MANAGEMENT’S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS | Len: 3771
+Scores | score: 0.251496095750128 | rerank: None | hybrid: 0.251496095750128 | dense: 0.26419569866576587 | sparse: 1.6022322054388418
+Selection Debug | Bucket: MDA | Rank in Section: 1 | Adjusted Score: 1.0515
+Reasons: base_score=0.2515; mda_signal_boost=+0.8; adjusted_score=1.0515
+Chunk Preview: of the following: • consumer subscriptions, which primarily include revenues from YouTube services, such as YouTube TV, YouTube Music and Premium, and NFL Sunday Ticket, as well as Google One; • platforms, which primarily include revenues f
+--------------------------------------------------------------------------------
+Chunk 3 | ID: 0001652044-25-000043:prose:2 | Source: prose | Section: ITEM 2. UNREGISTERED SALES OF EQUITY SECURITIES AND USE OF PROCEEDS | Len: 826
+Scores | score: 0.2542646663812713 | rerank: None | hybrid: 0.2542646663812713 | dense: 0.3098480982564844 | sparse: 1.9852076041805082
+Selection Debug | Bucket: MDA | Rank in Section: 2 | Adjusted Score: 0.2543
+Reasons: base_score=0.2543; adjusted_score=0.2543
+Chunk Preview: [ITEM 2. UNREGISTERED SALES OF EQUITY SECURITIES AND USE OF PROCEEDS] Issuer Purchases of Equity Securities The following table presents information with respect to Alphabet's repurchases of Class A and Class C stock during the quarter ende
+--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+Quarter: 2024 Q4
+Filing Date: 2024-10-30
+Predicted Label: Bearish
+Actual Label: Bullish
+Realized % Change: 12.01
+Chunks Used: 3
+Selected Sections: ['RISK', 'MDA']
+Model Error: None
+Price Error: None
+Chunk 1 | ID: 0001652044-24-000118:prose:1 | Source: prose | Section: ITEM 1A. RISK FACTORS | Len: 5970
+Scores | score: 0.25913894554825273 | rerank: None | hybrid: 0.25913894554825273 | dense: 0.4177776121020513 | sparse: 7.178259604569433
+Selection Debug | Bucket: RISK | Rank in Section: 1 | Adjusted Score: -2.2409
+Reasons: base_score=0.2591; boilerplate_penalty=-2.5; adjusted_score=-2.2409
+Chunk Preview: [ITEM 1A. RISK FACTORS] Our operations and financial results are subject to various risks and uncertainties, including but not limited to those described in Part I, Item 1A, "Risk Factors" in our Annual Report on Form 10-K for the year ende
+--------------------------------------------------------------------------------
+Chunk 2 | ID: 0001652044-24-000118:prose:0#part2 | Source: prose | Section: ITEM 2. MANAGEMENT’S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS | Len: 4239
+Scores | score: 0.25148809523809523 | rerank: None | hybrid: 0.25148809523809523 | dense: 0.2632268200774718 | sparse: 1.6625689866280595
+Selection Debug | Bucket: MDA | Rank in Section: 1 | Adjusted Score: 1.0515
+Reasons: base_score=0.2515; mda_signal_boost=+0.8; adjusted_score=1.0515
+Chunk Preview: above, such as: • advertiser competition for keywords; • changes in advertising quality, formats, delivery or policy; • changes in device mix; • seasonal fluctuations in internet usage, advertising expenditures, and underlying business tren
+--------------------------------------------------------------------------------
+Chunk 3 | ID: 0001652044-24-000118:prose:2 | Source: prose | Section: ITEM 2. UNREGISTERED SALES OF EQUITY SECURITIES AND USE OF PROCEEDS | Len: 830
+Scores | score: 0.2545618657298985 | rerank: None | hybrid: 0.2545618657298985 | dense: 0.31795280163630035 | sparse: 1.578789869165265
+Selection Debug | Bucket: MDA | Rank in Section: 2 | Adjusted Score: 0.2546
+Reasons: base_score=0.2546; adjusted_score=0.2546
+Chunk Preview: [ITEM 2. UNREGISTERED SALES OF EQUITY SECURITIES AND USE OF PROCEEDS] Issuer Purchases of Equity Securities The following table presents information with respect to Alphabet's repurchases of Class A and Class C stock during the quarter ende
+--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+Short Evaluation (Predicted vs Actual):
+------------------------------------------------------------------------------------------------------------------------
+2025 Q4: predicted=Neutral | actual=Bullish | evaluation=Slightly Wrong
+2025 Q3: predicted=Neutral | actual=Bullish | evaluation=Slightly Wrong
+2025 Q2: predicted=Neutral | actual=Bullish | evaluation=Slightly Wrong
+2024 Q4: predicted=Bearish | actual=Bullish | evaluation=Wrong
+------------------------------------------------------------------------------------------------------------------------
+Ticker Summary (GOOG): Correct=0, Slightly Wrong=3, Wrong=1, Unknown=0
+Rule: Slightly Wrong = 1-level gap; Wrong = 2-level gap (Bearish vs Bullish).
+========================================================================================================================
+
+Ticker: META
+------------------------------------------------------------------------------------------------------------------------
+Quarter: 2025 Q4
+Filing Date: 2025-10-30
+Predicted Label: Neutral
+Actual Label: Neutral
+Realized % Change: 0.42
+Chunks Used: 3
+Selected Sections: ['RISK', 'MDA']
+Model Error: None
+Price Error: None
+Chunk 1 | ID: 0001628280-25-047240:prose:1#part14 | Source: prose | Section: Item 1A. Risk Factors | Len: 5720
+Scores | score: 0.2441107918196952 | rerank: None | hybrid: 0.2441107918196952 | dense: 0.44818223649473815 | sparse: 5.820918910179114
+Selection Debug | Bucket: RISK | Rank in Section: 1 | Adjusted Score: 0.2441
+Reasons: base_score=0.2441; adjusted_score=0.2441
+Chunk Preview: edness or our ability to refinance existing indebtedness on acceptable terms; • changes in U.S. generally accepted accounting principles; and • changes in regional or global business, macroeconomic, or geopolitical conditions, which may imp
+--------------------------------------------------------------------------------
+Chunk 2 | ID: 0001628280-25-047240:prose:1#part21 | Source: prose | Section: Item 1A. Risk Factors | Len: 5725
+Scores | score: 0.23810233671581318 | rerank: None | hybrid: 0.23810233671581318 | dense: 0.4399536989587966 | sparse: 12.769214338437207
+Selection Debug | Bucket: RISK | Rank in Section: 2 | Adjusted Score: 0.2381
+Reasons: base_score=0.2381; adjusted_score=0.2381
+Chunk Preview: her strategic transactions we announce could be viewed negatively by users, marketers, developers, or investors, which may adversely affect our business or the price of our Class A common stock. We may also discover liabilities, deficiencie
+--------------------------------------------------------------------------------
+Chunk 3 | ID: 0001628280-25-047240:prose:0#part1 | Source: prose | Section: Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations | Len: 5812
+Scores | score: 0.21495896439635198 | rerank: None | hybrid: 0.21495896439635198 | dense: 0.41363778791250805 | sparse: 17.013551813295962
+Selection Debug | Bucket: MDA | Rank in Section: 1 | Adjusted Score: -1.485
+Reasons: base_score=0.2150; boilerplate_penalty=-2.5; mda_signal_boost=+0.8; adjusted_score=-1.4850
+Chunk Preview: [Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations] You should read the following discussion of our financial condition and results of operations in conjunction with our condensed consolidated fin
+--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+Quarter: 2025 Q3
+Filing Date: 2025-07-31
+Predicted Label: Bearish
+Actual Label: Neutral
+Realized % Change: -2.75
+Chunks Used: 3
+Selected Sections: ['RISK', 'MDA']
+Model Error: None
+Price Error: None
+Chunk 1 | ID: 0001628280-25-036791:prose:1#part19 | Source: prose | Section: Item 1A. Risk Factors | Len: 5762
+Scores | score: 0.24886174225179178 | rerank: None | hybrid: 0.24886174225179178 | dense: 0.43462852305546207 | sparse: 12.002488534836111
+Selection Debug | Bucket: RISK | Rank in Section: 1 | Adjusted Score: 0.2489
+Reasons: base_score=0.2489; adjusted_score=0.2489
+Chunk Preview: m and WhatsApp, as well as other alleged anticompetitive conduct; a former employee's allegations and release of internal company documents beginning in September 2021; the disclosure of our earnings results for the fourth quarter of 2021; 
+--------------------------------------------------------------------------------
+Chunk 2 | ID: 0001628280-25-036791:prose:1#part17 | Source: prose | Section: Item 1A. Risk Factors | Len: 5968
+Scores | score: 0.24086383053391883 | rerank: None | hybrid: 0.24086383053391883 | dense: 0.42734543470850805 | sparse: 5.390477421000179
+Selection Debug | Bucket: RISK | Rank in Section: 2 | Adjusted Score: 0.2409
+Reasons: base_score=0.2409; adjusted_score=0.2409
+Chunk Preview: ties. These efforts also subject us to risks such as greater than anticipated costs, adverse effects on employee retention, and increased difficulty managing the scale and complexity of our business. For example, we could face delays or cha
+--------------------------------------------------------------------------------
+Chunk 3 | ID: 0001628280-25-036791:prose:0#part1 | Source: prose | Section: Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations | Len: 5805
+Scores | score: 0.21977310331367794 | rerank: None | hybrid: 0.21977310331367794 | dense: 0.4222046992002831 | sparse: 17.132371871953822
+Selection Debug | Bucket: MDA | Rank in Section: 1 | Adjusted Score: -1.4802
+Reasons: base_score=0.2198; boilerplate_penalty=-2.5; mda_signal_boost=+0.8; adjusted_score=-1.4802
+Chunk Preview: [Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations] You should read the following discussion of our financial condition and results of operations in conjunction with our condensed consolidated fin
+--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+Quarter: 2025 Q2
+Filing Date: 2025-05-01
+Predicted Label: Neutral
+Actual Label: Bullish
+Realized % Change: 21.59
+Chunks Used: 3
+Selected Sections: ['RISK', 'MDA']
+Model Error: None
+Price Error: None
+Chunk 1 | ID: 0001326801-25-000054:prose:1#part19 | Source: prose | Section: Item 1A. Risk Factors | Len: 5844
+Scores | score: 0.24819912535188893 | rerank: None | hybrid: 0.24819912535188893 | dense: 0.4254359029211443 | sparse: 13.158761530227885
+Selection Debug | Bucket: RISK | Rank in Section: 1 | Adjusted Score: 0.2482
+Reasons: base_score=0.2482; adjusted_score=0.2482
+Chunk Preview: m and WhatsApp, as well as other alleged anticompetitive conduct; a former employee's allegations and release of internal company documents beginning in September 2021; the disclosure of our earnings results for the fourth quarter of 2021; 
+--------------------------------------------------------------------------------
+Chunk 2 | ID: 0001326801-25-000054:prose:1#part13 | Source: prose | Section: Item 1A. Risk Factors | Len: 5933
+Scores | score: 0.24354121423920194 | rerank: None | hybrid: 0.24354121423920194 | dense: 0.4460905482083568 | sparse: 4.926126994975124
+Selection Debug | Bucket: RISK | Rank in Section: 2 | Adjusted Score: 0.2435
+Reasons: base_score=0.2435; adjusted_score=0.2435
+Chunk Preview: adverse litigation judgments, settlements, or other litigation-related costs; • changes in the legislative or regulatory environment, including with respect to privacy, data protection, antitrust, content, or AI, or actions by governments o
+--------------------------------------------------------------------------------
+Chunk 3 | ID: 0001326801-25-000054:prose:0#part1 | Source: prose | Section: Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations | Len: 5900
+Scores | score: 0.2301996813070708 | rerank: None | hybrid: 0.2301996813070708 | dense: 0.4082149171601662 | sparse: 16.550170206983232
+Selection Debug | Bucket: MDA | Rank in Section: 1 | Adjusted Score: -1.4698
+Reasons: base_score=0.2302; boilerplate_penalty=-2.5; mda_signal_boost=+0.8; adjusted_score=-1.4698
+Chunk Preview: [Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations] You should read the following discussion of our financial condition and results of operations in conjunction with our condensed consolidated fin
+--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+Quarter: 2024 Q4
+Filing Date: 2024-10-31
+Predicted Label: Neutral
+Actual Label: Bullish
+Realized % Change: 19.28
+Chunks Used: 3
+Selected Sections: ['RISK', 'MDA']
+Model Error: None
+Price Error: None
+Chunk 1 | ID: 0001326801-24-000081:prose:1#part18 | Source: prose | Section: Item 1A. Risk Factors | Len: 5848
+Scores | score: 0.24973749394950528 | rerank: None | hybrid: 0.24973749394950528 | dense: 0.42519580095322934 | sparse: 9.445724544939125
+Selection Debug | Bucket: RISK | Rank in Section: 1 | Adjusted Score: 0.2497
+Reasons: base_score=0.2497; adjusted_score=0.2497
+Chunk Preview: and sales. We could be negatively affected if we are not able to engage third parties with the necessary capabilities or capacity on reasonable terms, or if those we engage with fail to meet their obligations (whether due to financial diffi
+--------------------------------------------------------------------------------
+Chunk 2 | ID: 0001326801-24-000081:prose:1#part13 | Source: prose | Section: Item 1A. Risk Factors | Len: 5934
+Scores | score: 0.24278464651873344 | rerank: None | hybrid: 0.24278464651873344 | dense: 0.4413016353923863 | sparse: 5.7256134453237975
+Selection Debug | Bucket: RISK | Rank in Section: 2 | Adjusted Score: 0.2428
+Reasons: base_score=0.2428; adjusted_score=0.2428
+Chunk Preview: edness or our ability to refinance existing indebtedness on acceptable terms; • changes in U.S. generally accepted accounting principles; and • changes in regional or global business, macroeconomic, or geopolitical conditions, which may imp
+--------------------------------------------------------------------------------
+Chunk 3 | ID: 0001326801-24-000081:prose:0#part1 | Source: prose | Section: Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations | Len: 5871
+Scores | score: 0.23192726808633785 | rerank: None | hybrid: 0.23192726808633785 | dense: 0.41659140182777166 | sparse: 16.486154386873345
+Selection Debug | Bucket: MDA | Rank in Section: 1 | Adjusted Score: -1.4681
+Reasons: base_score=0.2319; boilerplate_penalty=-2.5; mda_signal_boost=+0.8; adjusted_score=-1.4681
+Chunk Preview: [Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations] You should read the following discussion of our financial condition and results of operations in conjunction with our condensed consolidated fin
+--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+Short Evaluation (Predicted vs Actual):
+------------------------------------------------------------------------------------------------------------------------
+2025 Q4: predicted=Neutral | actual=Neutral | evaluation=Correct
+2025 Q3: predicted=Bearish | actual=Neutral | evaluation=Slightly Wrong
+2025 Q2: predicted=Neutral | actual=Bullish | evaluation=Slightly Wrong
+2024 Q4: predicted=Neutral | actual=Bullish | evaluation=Slightly Wrong
+------------------------------------------------------------------------------------------------------------------------
+Ticker Summary (META): Correct=1, Slightly Wrong=3, Wrong=0, Unknown=0
+Rule: Slightly Wrong = 1-level gap; Wrong = 2-level gap (Bearish vs Bullish).
+========================================================================================================================
+
+Ticker: TSLA
+------------------------------------------------------------------------------------------------------------------------
+Quarter: 2025 Q4
+Filing Date: 2025-10-23
+Predicted Label: Bullish
+Actual Label: Neutral
+Realized % Change: -3.91
+Chunks Used: 3
+Selected Sections: ['RISK', 'MDA']
+Model Error: None
+Price Error: None
+Chunk 1 | ID: 0001628280-25-045968:prose:1 | Source: prose | Section: ITEM 1A. RISK FACTORS | Len: 610
+Scores | score: 0.25737883290104335 | rerank: None | hybrid: 0.25737883290104335 | dense: 0.5718091411874214 | sparse: 6.750220423777036
+Selection Debug | Bucket: RISK | Rank in Section: 1 | Adjusted Score: 0.2574
+Reasons: base_score=0.2574; adjusted_score=0.2574
+Chunk Preview: [ITEM 1A. RISK FACTORS] Our operations and financial results are subject to various risks and uncertainties, including the factors discussed in Part I, Item 1A, Risk Factors in our Annual Report on Form 10-K for the year ended December 31, 
+--------------------------------------------------------------------------------
+Chunk 2 | ID: 0001628280-25-045968:prose:0#part3 | Source: prose | Section: ITEM 2. MANAGEMENT’S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS | Len: 4752
+Scores | score: 0.2578748646470751 | rerank: None | hybrid: 0.2578748646470751 | dense: 0.4301209646036008 | sparse: 5.0440052157230575
+Selection Debug | Bucket: MDA | Rank in Section: 1 | Adjusted Score: 1.0579
+Reasons: base_score=0.2579; mda_signal_boost=+0.8; adjusted_score=1.0579
+Chunk Preview: taxi business, we are focused on developing and optimizing dedicated infrastructure, including in relation to vehicle cleaning and maintenance, charging, security, teleoperations and fleet management, to ensure service quality as we continu
+--------------------------------------------------------------------------------
+Chunk 3 | ID: 0001628280-25-045968:prose:0#part1 | Source: prose | Section: ITEM 2. MANAGEMENT’S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS | Len: 5814
+Scores | score: 0.2563055838852375 | rerank: None | hybrid: 0.2563055838852375 | dense: 0.3821150624872654 | sparse: 9.496910392037833
+Selection Debug | Bucket: MDA | Rank in Section: 2 | Adjusted Score: 1.0563
+Reasons: base_score=0.2563; mda_signal_boost=+0.8; adjusted_score=1.0563
+Chunk Preview: [ITEM 2. MANAGEMENT’S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS] The following discussion and analysis should be read in conjunction with the consolidated financial statements and the related notes included el
+--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+Quarter: 2025 Q3
+Filing Date: 2025-07-24
+Predicted Label: Neutral
+Actual Label: Bullish
+Realized % Change: 43.78
+Chunks Used: 3
+Selected Sections: ['RISK', 'MDA']
+Model Error: None
+Price Error: None
+Chunk 1 | ID: 0001628280-25-035806:prose:1 | Source: prose | Section: ITEM 1A. RISK FACTORS | Len: 3606
+Scores | score: 0.2565859952741893 | rerank: None | hybrid: 0.2565859952741893 | dense: 0.3790469808064435 | sparse: 8.205031659717951
+Selection Debug | Bucket: RISK | Rank in Section: 1 | Adjusted Score: 0.2566
+Reasons: base_score=0.2566; adjusted_score=0.2566
+Chunk Preview: [ITEM 1A. RISK FACTORS] Our operations and financial results are subject to various risks and uncertainties, including the factors discussed in Part I, Item 1A, Risk Factors in our Annual Report on Form 10-K for the year ended December 31, 
+--------------------------------------------------------------------------------
+Chunk 2 | ID: 0001628280-25-035806:prose:0#part3 | Source: prose | Section: ITEM 2. MANAGEMENT’S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS | Len: 4129
+Scores | score: 0.25815566950383184 | rerank: None | hybrid: 0.25815566950383184 | dense: 0.42023186344998203 | sparse: 5.298628019855765
+Selection Debug | Bucket: MDA | Rank in Section: 1 | Adjusted Score: 1.0582
+Reasons: base_score=0.2582; mda_signal_boost=+0.8; adjusted_score=1.0582
+Chunk Preview: the ramps of our Megafactories in Shanghai and Lathrop, California, and the construction of a new Megafactory near Houston, Texas. For Megapack, energy storage deployments can vary meaningfully quarter to quarter depending on the timing of 
+--------------------------------------------------------------------------------
+Chunk 3 | ID: 0001628280-25-035806:prose:0#part1 | Source: prose | Section: ITEM 2. MANAGEMENT’S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS | Len: 5959
+Scores | score: 0.25759405979031835 | rerank: None | hybrid: 0.25759405979031835 | dense: 0.395337943245207 | sparse: 8.237283593530973
+Selection Debug | Bucket: MDA | Rank in Section: 2 | Adjusted Score: 1.0576
+Reasons: base_score=0.2576; mda_signal_boost=+0.8; adjusted_score=1.0576
+Chunk Preview: [ITEM 2. MANAGEMENT’S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS] The following discussion and analysis should be read in conjunction with the consolidated financial statements and the related notes included el
+--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+Quarter: 2025 Q2
+Filing Date: 2025-04-23
+Predicted Label: Bearish
+Actual Label: Bullish
+Realized % Change: 32.45
+Chunks Used: 3
+Selected Sections: ['RISK', 'MDA']
+Model Error: None
+Price Error: None
+Chunk 1 | ID: 0001628280-25-018911:prose:1 | Source: prose | Section: ITEM 1A. RISK FACTORS | Len: 5067
+Scores | score: 0.25737083238901054 | rerank: None | hybrid: 0.25737083238901054 | dense: 0.44375802182801954 | sparse: 8.975347078595565
+Selection Debug | Bucket: RISK | Rank in Section: 1 | Adjusted Score: 0.2574
+Reasons: base_score=0.2574; adjusted_score=0.2574
+Chunk Preview: [ITEM 1A. RISK FACTORS] Our operations and financial results are subject to various risks and uncertainties, including the factors discussed in Part I, Item 1A, Risk Factors in our Annual Report on Form 10-K for the year ended December 31, 
+--------------------------------------------------------------------------------
+Chunk 2 | ID: 0001628280-25-018911:prose:0#part3 | Source: prose | Section: ITEM 2. MANAGEMENT’S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS | Len: 3717
+Scores | score: 0.2576352427538968 | rerank: None | hybrid: 0.2576352427538968 | dense: 0.4069237065686706 | sparse: 6.7996343127212215
+Selection Debug | Bucket: MDA | Rank in Section: 1 | Adjusted Score: 1.0576
+Reasons: base_score=0.2576; mda_signal_boost=+0.8; adjusted_score=1.0576
+Chunk Preview: , we will have to maintain adequate battery cell supply for our energy storage products. At the same time, changes in government and economic incentives or tariffs may also impact our sales, cost structure and the competitive landscape. For
+--------------------------------------------------------------------------------
+Chunk 3 | ID: 0001628280-25-018911:prose:0#part1 | Source: prose | Section: ITEM 2. MANAGEMENT’S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS | Len: 5968
+Scores | score: 0.25680922267549705 | rerank: None | hybrid: 0.25680922267549705 | dense: 0.3706943371774452 | sparse: 8.430228191724343
+Selection Debug | Bucket: MDA | Rank in Section: 2 | Adjusted Score: 1.0568
+Reasons: base_score=0.2568; mda_signal_boost=+0.8; adjusted_score=1.0568
+Chunk Preview: [ITEM 2. MANAGEMENT’S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS] The following discussion and analysis should be read in conjunction with the consolidated financial statements and the related notes included el
+--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+Quarter: 2024 Q4
+Filing Date: 2024-10-24
+Predicted Label: Bullish
+Actual Label: Bullish
+Realized % Change: 59.36
+Chunks Used: 3
+Selected Sections: ['RISK', 'MDA']
+Model Error: None
+Price Error: None
+Chunk 1 | ID: 0001628280-24-043486:prose:1 | Source: prose | Section: ITEM 1A. RISK FACTORS | Len: 330
+Scores | score: 0.2553772036618414 | rerank: None | hybrid: 0.2553772036618414 | dense: 0.5712340329588392 | sparse: 8.110865791191683
+Selection Debug | Bucket: RISK | Rank in Section: 1 | Adjusted Score: 0.2554
+Reasons: base_score=0.2554; adjusted_score=0.2554
+Chunk Preview: [ITEM 1A. RISK FACTORS] Our operations and financial results are subject to various risks and uncertainties, including the factors discussed in Part I, Item 1A, Risk Factors in our Annual Report on Form 10-K for the year ended December 31, 
+--------------------------------------------------------------------------------
+Chunk 2 | ID: 0001628280-24-043486:prose:0#part3 | Source: prose | Section: ITEM 2. MANAGEMENT’S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS | Len: 1982
+Scores | score: 0.2570984215120915 | rerank: None | hybrid: 0.2570984215120915 | dense: 0.4915200626941021 | sparse: 4.362063912731581
+Selection Debug | Bucket: MDA | Rank in Section: 1 | Adjusted Score: 1.0571
+Reasons: base_score=0.2571; mda_signal_boost=+0.8; adjusted_score=1.0571
+Chunk Preview: ncreased capital efficiencies and the addition of new projects. Owing and subject to the foregoing as well as the pipeline of announced projects under development, all other continuing infrastructure growth and varying levels of inflation, 
+--------------------------------------------------------------------------------
+Chunk 3 | ID: 0001628280-24-043486:prose:0#part2 | Source: prose | Section: ITEM 2. MANAGEMENT’S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS | Len: 5899
+Scores | score: 0.25454507777022317 | rerank: None | hybrid: 0.25454507777022317 | dense: 0.376805934776407 | sparse: 4.9220617643168225
+Selection Debug | Bucket: MDA | Rank in Section: 2 | Adjusted Score: 1.0545
+Reasons: base_score=0.2545; mda_signal_boost=+0.8; adjusted_score=1.0545
+Chunk Preview: with our plans for battery cells as well as for iterative manufacturing and design improvements for our vehicles with each new factory. Automotive—Demand, Sales, Deliveries and Infrastructure Our cost reduction efforts, cost innovation stra
+--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+Short Evaluation (Predicted vs Actual):
+------------------------------------------------------------------------------------------------------------------------
+2025 Q4: predicted=Bullish | actual=Neutral | evaluation=Slightly Wrong
+2025 Q3: predicted=Neutral | actual=Bullish | evaluation=Slightly Wrong
+2025 Q2: predicted=Bearish | actual=Bullish | evaluation=Wrong
+2024 Q4: predicted=Bullish | actual=Bullish | evaluation=Correct
+------------------------------------------------------------------------------------------------------------------------
+Ticker Summary (TSLA): Correct=1, Slightly Wrong=2, Wrong=1, Unknown=0
+Rule: Slightly Wrong = 1-level gap; Wrong = 2-level gap (Bearish vs Bullish).
+========================================================================================================================
+
+OVERALL EVALUATION (ALL TICKERS)
+========================================================================================================================
+Total Predictions: 20
+Overall Summary: Correct=7, Slightly Wrong=11, Wrong=2, Unknown=0
+AAPL: total=4 | Correct=3 | Slightly Wrong=1 | Wrong=0 | Unknown=0
+NVDA: total=4 | Correct=2 | Slightly Wrong=2 | Wrong=0 | Unknown=0
+GOOG: total=4 | Correct=0 | Slightly Wrong=3 | Wrong=1 | Unknown=0
+META: total=4 | Correct=1 | Slightly Wrong=3 | Wrong=0 | Unknown=0
+TSLA: total=4 | Correct=1 | Slightly Wrong=2 | Wrong=1 | Unknown=0

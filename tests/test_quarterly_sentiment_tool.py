@@ -1,6 +1,9 @@
 import os
 import re
 import sys
+import json
+from datetime import datetime
+from pathlib import Path
 from typing import Dict, List
 
 import pandas as pd
@@ -219,6 +222,76 @@ def _preview_text(text: str, limit: int = 240) -> str:
     return normalized[:limit]
 
 
+def _label_to_level(label: str | None) -> int | None:
+    if not label:
+        return None
+    normalized = str(label).strip().lower()
+    if normalized == "bearish":
+        return -1
+    if normalized == "neutral":
+        return 0
+    if normalized == "bullish":
+        return 1
+    return None
+
+
+def _evaluate_prediction(predicted_label: str | None, actual_label: str | None) -> str:
+    predicted_level = _label_to_level(predicted_label)
+    actual_level = _label_to_level(actual_label)
+
+    if predicted_level is None or actual_level is None:
+        return "Unknown"
+
+    diff = abs(predicted_level - actual_level)
+    if diff == 0:
+        return "Correct"
+    if diff == 1:
+        return "Slightly Wrong"
+    return "Wrong"
+
+
+def _emit(lines: List[str], message: str = "") -> None:
+    print(message)
+    lines.append(message)
+
+
+def _evaluation_counts(rows: List[Dict[str, str]]) -> Dict[str, int]:
+    counts = {
+        "Correct": 0,
+        "Slightly Wrong": 0,
+        "Wrong": 0,
+        "Unknown": 0,
+    }
+    for row in rows:
+        label = row.get("evaluation", "Unknown")
+        if label not in counts:
+            label = "Unknown"
+        counts[label] += 1
+    return counts
+
+
+def _write_batch_outputs(log_lines: List[str], rows: List[Dict[str, str]]) -> tuple[Path, Path]:
+    output_dir = Path(PROJECT_ROOT) / "evaluation"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_path = output_dir / f"quarterly_sentiment_batch_{timestamp}.txt"
+    json_path = output_dir / f"quarterly_sentiment_batch_{timestamp}.json"
+
+    log_path.write_text("\n".join(log_lines) + "\n", encoding="utf-8")
+
+    payload = {
+        "generated_at": datetime.now().isoformat(),
+        "tickers": sorted({row.get("ticker", "") for row in rows if row.get("ticker")}),
+        "total_rows": len(rows),
+        "overall_counts": _evaluation_counts(rows),
+        "rows": rows,
+    }
+    json_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    return log_path, json_path
+
+
 def _prepare_recent_filings_for_test(
     yahoo_agent: YahooFinanceAgent,
     ticker: str,
@@ -309,7 +382,7 @@ def _retrieve_chunks_for_filing(
 
 
 def main() -> None:
-    ticker = "TSLA"
+    tickers = ["AAPL", "NVDA", "GOOG", "META", "TSLA"]
     num_quarters = 4
     horizon_days = 90
     price_label_threshold = 0.10
@@ -318,108 +391,197 @@ def main() -> None:
     retrieval_k = 20
     openai_api_key = os.environ.get("OPENAI_API_KEY")
 
-    print(f"\nRunning modular tool integration test for {ticker} ({num_quarters} quarter)")
-    print("=" * 120)
+    log_lines: List[str] = []
+    all_rows: List[Dict[str, str]] = []
+
+    _emit(log_lines, "")
+    _emit(
+        log_lines,
+        (
+            "Running modular tool integration batch test for "
+            f"{', '.join(tickers)} ({num_quarters} quarters each)"
+        ),
+    )
+    _emit(log_lines, "=" * 120)
 
     yahoo_agent = YahooFinanceAgent()
     tool = QuarterlySentimentTool()
-
-    prepared = _prepare_recent_filings_for_test(
-        yahoo_agent=yahoo_agent,
-        ticker=ticker,
-        num_quarters=num_quarters,
-    )
-    if not prepared.get("success"):
-        print(f"Failed to prepare filings: {prepared.get('error')}")
-        return
-
-    filings = prepared.get("filings", [])
-    if not filings:
-        print("No filings were prepared.")
-        return
 
     generation_provider = OpenAIChatGenerationProvider(
         api_key=openai_api_key,
         model=generation_model,
     )
 
-    for filing in filings:
-        candidate_chunks, chunk_count = _retrieve_chunks_for_filing(
+    for ticker in tickers:
+        _emit(log_lines, "")
+        _emit(log_lines, f"Ticker: {ticker}")
+        _emit(log_lines, "-" * 120)
+
+        prepared = _prepare_recent_filings_for_test(
+            yahoo_agent=yahoo_agent,
             ticker=ticker,
-            filing=filing,
-            openai_api_key=openai_api_key,
-            embedding_model=embedding_model,
-            retrieval_k=retrieval_k,
+            num_quarters=num_quarters,
         )
+        if not prepared.get("success"):
+            _emit(log_lines, f"Failed to prepare filings: {prepared.get('error')}")
+            continue
 
-        actual_result = compute_actual_label_from_yfinance(
-            ticker=ticker,
-            filing_date=filing.get("filing_date", ""),
-            horizon_days=horizon_days,
-            price_label_threshold=price_label_threshold,
-        )
+        filings = prepared.get("filings", [])
+        if not filings:
+            _emit(log_lines, "No filings were prepared.")
+            continue
 
-        tool_output = tool.analyze_single_filing(
-            ticker=ticker,
-            filing=filing,
-            candidate_chunks=candidate_chunks,
-            actual_result=actual_result,
-            chunk_count=chunk_count,
-            generation_provider=generation_provider,
-        )
+        ticker_rows: List[Dict[str, str]] = []
 
-        print(f"Quarter: {tool_output.get('quarter')}")
-        print(f"Filing Date: {tool_output.get('filing_date')}")
-        print(f"Predicted Label: {tool_output.get('predicted_label')}")
-        print(f"Actual Label: {tool_output.get('actual_label')}")
-        print(f"Realized % Change: {tool_output.get('realized_next_quarter_pct_change')}")
-        print(f"Chunks Used: {tool_output.get('chunks_used')}")
-        print(f"Selected Sections: {tool_output.get('selected_sections')}")
-        print(f"Model Error: {tool_output.get('model_error')}")
-        print(f"Price Error: {tool_output.get('price_error')}")
-
-        retrieved_chunks = tool_output.get("retrieved_chunks", []) or []
-        for idx, chunk in enumerate(retrieved_chunks, start=1):
-            section_name = (
-                chunk.get("section_name")
-                or chunk.get("section")
-                or chunk.get("metadata", {}).get("section_name")
-                or "UNKNOWN"
-            )
-            chunk_id = chunk.get("chunk_id", f"chunk_{idx}")
-            source_type = chunk.get("source_type", "UNKNOWN")
-            text = chunk.get("text", "")
-            score = chunk.get("score")
-            rerank_score = chunk.get("rerank_score")
-            hybrid_score = chunk.get("hybrid_score")
-            dense_score = chunk.get("dense_score")
-            sparse_score = chunk.get("sparse_score")
-            selection_debug = chunk.get("selection_debug", {})
-
-            print(
-                f"Chunk {idx} | ID: {chunk_id} | Source: {source_type} | "
-                f"Section: {section_name} | Len: {len(text)}"
-            )
-            print(
-                f"Scores | score: {score} | rerank: {rerank_score} | "
-                f"hybrid: {hybrid_score} | dense: {dense_score} | sparse: {sparse_score}"
+        for filing in filings:
+            candidate_chunks, chunk_count = _retrieve_chunks_for_filing(
+                ticker=ticker,
+                filing=filing,
+                openai_api_key=openai_api_key,
+                embedding_model=embedding_model,
+                retrieval_k=retrieval_k,
             )
 
-            if selection_debug:
-                print(
-                    f"Selection Debug | Bucket: {selection_debug.get('section_bucket', 'UNKNOWN')} | "
-                    f"Rank in Section: {selection_debug.get('section_rank', '?')} | "
-                    f"Adjusted Score: {selection_debug.get('adjusted_score', '?')}"
+            actual_result = compute_actual_label_from_yfinance(
+                ticker=ticker,
+                filing_date=filing.get("filing_date", ""),
+                horizon_days=horizon_days,
+                price_label_threshold=price_label_threshold,
+            )
+
+            tool_output = tool.analyze_single_filing(
+                ticker=ticker,
+                filing=filing,
+                candidate_chunks=candidate_chunks,
+                actual_result=actual_result,
+                chunk_count=chunk_count,
+                generation_provider=generation_provider,
+            )
+
+            _emit(log_lines, f"Quarter: {tool_output.get('quarter')}")
+            _emit(log_lines, f"Filing Date: {tool_output.get('filing_date')}")
+            _emit(log_lines, f"Predicted Label: {tool_output.get('predicted_label')}")
+            _emit(log_lines, f"Actual Label: {tool_output.get('actual_label')}")
+            _emit(log_lines, f"Realized % Change: {tool_output.get('realized_next_quarter_pct_change')}")
+            _emit(log_lines, f"Chunks Used: {tool_output.get('chunks_used')}")
+            _emit(log_lines, f"Selected Sections: {tool_output.get('selected_sections')}")
+            _emit(log_lines, f"Model Error: {tool_output.get('model_error')}")
+            _emit(log_lines, f"Price Error: {tool_output.get('price_error')}")
+
+            retrieved_chunks = tool_output.get("retrieved_chunks", []) or []
+            for idx, chunk in enumerate(retrieved_chunks, start=1):
+                section_name = (
+                    chunk.get("section_name")
+                    or chunk.get("section")
+                    or chunk.get("metadata", {}).get("section_name")
+                    or "UNKNOWN"
                 )
-                reasons = selection_debug.get("reasons", [])
-                if reasons:
-                    print(f"Reasons: {'; '.join(reasons)}")
+                chunk_id = chunk.get("chunk_id", f"chunk_{idx}")
+                source_type = chunk.get("source_type", "UNKNOWN")
+                text = chunk.get("text", "")
+                score = chunk.get("score")
+                rerank_score = chunk.get("rerank_score")
+                hybrid_score = chunk.get("hybrid_score")
+                dense_score = chunk.get("dense_score")
+                sparse_score = chunk.get("sparse_score")
+                selection_debug = chunk.get("selection_debug", {})
 
-            print(f"Chunk Preview: {_preview_text(text)}")
-            print("-" * 80)
-        print("-" * 120)
+                _emit(
+                    log_lines,
+                    f"Chunk {idx} | ID: {chunk_id} | Source: {source_type} | "
+                    f"Section: {section_name} | Len: {len(text)}",
+                )
+                _emit(
+                    log_lines,
+                    f"Scores | score: {score} | rerank: {rerank_score} | "
+                    f"hybrid: {hybrid_score} | dense: {dense_score} | sparse: {sparse_score}",
+                )
 
-    print("=" * 120)
+                if selection_debug:
+                    _emit(
+                        log_lines,
+                        f"Selection Debug | Bucket: {selection_debug.get('section_bucket', 'UNKNOWN')} | "
+                        f"Rank in Section: {selection_debug.get('section_rank', '?')} | "
+                        f"Adjusted Score: {selection_debug.get('adjusted_score', '?')}",
+                    )
+                    reasons = selection_debug.get("reasons", [])
+                    if reasons:
+                        _emit(log_lines, f"Reasons: {'; '.join(reasons)}")
+
+                _emit(log_lines, f"Chunk Preview: {_preview_text(text)}")
+                _emit(log_lines, "-" * 80)
+
+            prediction_evaluation = _evaluate_prediction(
+                tool_output.get("predicted_label"),
+                tool_output.get("actual_label"),
+            )
+            row = {
+                "ticker": ticker,
+                "quarter": str(tool_output.get("quarter")),
+                "filing_date": str(tool_output.get("filing_date")),
+                "predicted": str(tool_output.get("predicted_label")),
+                "actual": str(tool_output.get("actual_label")),
+                "evaluation": prediction_evaluation,
+            }
+            ticker_rows.append(row)
+            all_rows.append(row)
+            _emit(log_lines, "-" * 120)
+
+        _emit(log_lines, "Short Evaluation (Predicted vs Actual):")
+        _emit(log_lines, "-" * 120)
+        for row in ticker_rows:
+            _emit(
+                log_lines,
+                f"{row['quarter']}: predicted={row['predicted']} | "
+                f"actual={row['actual']} | evaluation={row['evaluation']}",
+            )
+
+        ticker_counts = _evaluation_counts(ticker_rows)
+        _emit(log_lines, "-" * 120)
+        _emit(
+            log_lines,
+            (
+                f"Ticker Summary ({ticker}): Correct={ticker_counts['Correct']}, "
+                f"Slightly Wrong={ticker_counts['Slightly Wrong']}, "
+                f"Wrong={ticker_counts['Wrong']}, Unknown={ticker_counts['Unknown']}"
+            ),
+        )
+        _emit(log_lines, "Rule: Slightly Wrong = 1-level gap; Wrong = 2-level gap (Bearish vs Bullish).")
+        _emit(log_lines, "=" * 120)
+
+    overall_counts = _evaluation_counts(all_rows)
+
+    _emit(log_lines, "")
+    _emit(log_lines, "OVERALL EVALUATION (ALL TICKERS)")
+    _emit(log_lines, "=" * 120)
+    _emit(log_lines, f"Total Predictions: {len(all_rows)}")
+    _emit(
+        log_lines,
+        (
+            f"Overall Summary: Correct={overall_counts['Correct']}, "
+            f"Slightly Wrong={overall_counts['Slightly Wrong']}, "
+            f"Wrong={overall_counts['Wrong']}, Unknown={overall_counts['Unknown']}"
+        ),
+    )
+
+    for ticker in tickers:
+        ticker_rows = [row for row in all_rows if row.get("ticker") == ticker]
+        ticker_counts = _evaluation_counts(ticker_rows)
+        _emit(
+            log_lines,
+            (
+                f"{ticker}: total={len(ticker_rows)} | "
+                f"Correct={ticker_counts['Correct']} | "
+                f"Slightly Wrong={ticker_counts['Slightly Wrong']} | "
+                f"Wrong={ticker_counts['Wrong']} | "
+                f"Unknown={ticker_counts['Unknown']}"
+            ),
+        )
+
+    log_path, json_path = _write_batch_outputs(log_lines, all_rows)
+    _emit(log_lines, "=" * 120)
+    _emit(log_lines, f"Saved full log to: {log_path}")
+    _emit(log_lines, f"Saved structured results to: {json_path}")
 
 
 if __name__ == "__main__":
