@@ -1,0 +1,179 @@
+{
+  "generated_at": "2026-04-11T14:03:21.815294",
+  "tickers": [
+    "AAPL",
+    "GOOG",
+    "META",
+    "NVDA",
+    "TSLA"
+  ],
+  "total_rows": 20,
+  "overall_counts": {
+    "Correct": 7,
+    "Slightly Wrong": 11,
+    "Wrong": 2,
+    "Unknown": 0
+  },
+  "rows": [
+    {
+      "ticker": "AAPL",
+      "quarter": "2026 Q1",
+      "filing_date": "2026-01-30",
+      "predicted": "Bullish",
+      "actual": "Neutral",
+      "evaluation": "Slightly Wrong"
+    },
+    {
+      "ticker": "AAPL",
+      "quarter": "2025 Q3",
+      "filing_date": "2025-08-01",
+      "predicted": "Bullish",
+      "actual": "Bullish",
+      "evaluation": "Correct"
+    },
+    {
+      "ticker": "AAPL",
+      "quarter": "2025 Q2",
+      "filing_date": "2025-05-02",
+      "predicted": "Neutral",
+      "actual": "Neutral",
+      "evaluation": "Correct"
+    },
+    {
+      "ticker": "AAPL",
+      "quarter": "2025 Q1",
+      "filing_date": "2025-01-31",
+      "predicted": "Neutral",
+      "actual": "Neutral",
+      "evaluation": "Correct"
+    },
+    {
+      "ticker": "NVDA",
+      "quarter": "2025 Q4",
+      "filing_date": "2025-11-19",
+      "predicted": "Bearish",
+      "actual": "Neutral",
+      "evaluation": "Slightly Wrong"
+    },
+    {
+      "ticker": "NVDA",
+      "quarter": "2025 Q3",
+      "filing_date": "2025-08-27",
+      "predicted": "Bearish",
+      "actual": "Neutral",
+      "evaluation": "Slightly Wrong"
+    },
+    {
+      "ticker": "NVDA",
+      "quarter": "2025 Q2",
+      "filing_date": "2025-05-28",
+      "predicted": "Bullish",
+      "actual": "Bullish",
+      "evaluation": "Correct"
+    },
+    {
+      "ticker": "NVDA",
+      "quarter": "2024 Q4",
+      "filing_date": "2024-11-20",
+      "predicted": "Neutral",
+      "actual": "Neutral",
+      "evaluation": "Correct"
+    },
+    {
+      "ticker": "GOOG",
+      "quarter": "2025 Q4",
+      "filing_date": "2025-10-30",
+      "predicted": "Neutral",
+      "actual": "Bullish",
+      "evaluation": "Slightly Wrong"
+    },
+    {
+      "ticker": "GOOG",
+      "quarter": "2025 Q3",
+      "filing_date": "2025-07-24",
+      "predicted": "Neutral",
+      "actual": "Bullish",
+      "evaluation": "Slightly Wrong"
+    },
+    {
+      "ticker": "GOOG",
+      "quarter": "2025 Q2",
+      "filing_date": "2025-04-25",
+      "predicted": "Neutral",
+      "actual": "Bullish",
+      "evaluation": "Slightly Wrong"
+    },
+    {
+      "ticker": "GOOG",
+      "quarter": "2024 Q4",
+      "filing_date": "2024-10-30",
+      "predicted": "Bearish",
+      "actual": "Bullish",
+      "evaluation": "Wrong"
+    },
+    {
+      "ticker": "META",
+      "quarter": "2025 Q4",
+      "filing_date": "2025-10-30",
+      "predicted": "Neutral",
+      "actual": "Neutral",
+      "evaluation": "Correct"
+    },
+    {
+      "ticker": "META",
+      "quarter": "2025 Q3",
+      "filing_date": "2025-07-31",
+      "predicted": "Bearish",
+      "actual": "Neutral",
+      "evaluation": "Slightly Wrong"
+    },
+    {
+      "ticker": "META",
+      "quarter": "2025 Q2",
+      "filing_date": "2025-05-01",
+      "predicted": "Neutral",
+      "actual": "Bullish",
+      "evaluation": "Slightly Wrong"
+    },
+    {
+      "ticker": "META",
+      "quarter": "2024 Q4",
+      "filing_date": "2024-10-31",
+      "predicted": "Neutral",
+      "actual": "Bullish",
+      "evaluation": "Slightly Wrong"
+    },
+    {
+      "ticker": "TSLA",
+      "quarter": "2025 Q4",
+      "filing_date": "2025-10-23",
+      "predicted": "Bullish",
+      "actual": "Neutral",
+      "evaluation": "Slightly Wrong"
+    },
+    {
+      "ticker": "TSLA",
+      "quarter": "2025 Q3",
+      "filing_date": "2025-07-24",
+      "predicted": "Neutral",
+      "actual": "Bullish",
+      "evaluation": "Slightly Wrong"
+    },
+    {
+      "ticker": "TSLA",
+      "quarter": "2025 Q2",
+      "filing_date": "2025-04-23",
+      "predicted": "Bearish",
+      "actual": "Bullish",
+      "evaluation": "Wrong"
+    },
+    {
+      "ticker": "TSLA",
+      "quarter": "2024 Q4",
+      "filing_date": "2024-10-24",
+      "predicted": "Bullish",
+      "actual": "Bullish",
+      "evaluation": "Correct"
+    }
+  ]
+}
